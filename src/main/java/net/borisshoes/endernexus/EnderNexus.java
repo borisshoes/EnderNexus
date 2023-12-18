@@ -1,10 +1,14 @@
 package net.borisshoes.endernexus;
 
+import carpet.CarpetSettings;
+import carpet.utils.CommandHelper;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.borisshoes.endernexus.utils.ConfigUtils;
 import net.borisshoes.endernexus.utils.GenericTimer;
 import net.borisshoes.endernexus.utils.TeleportTimer;
@@ -49,6 +53,7 @@ public class EnderNexus implements ModInitializer {
    private static final String CONFIG_NAME = "EnderNexus.properties";
    public static final HashMap<UUID,GenericTimer> SERVER_TIMER_CALLBACKS = new HashMap<>();
    public static final HashMap<UUID,GenericTimer> SERVER_TIMER_CALLBACKS_QUEUE = new HashMap<>();
+   public static boolean hasCarpet;
    
    public static ConfigUtils config;
    
@@ -60,6 +65,7 @@ public class EnderNexus implements ModInitializer {
       LOGGER.info("Ender Nexus is Warping In!");
    
       ServerTickEvents.END_SERVER_TICK.register(EnderNexus::onTick);
+      hasCarpet = FabricLoader.getInstance().isModLoaded("carpet");
    
       config = new ConfigUtils(FabricLoader.getInstance().getConfigDir().resolve(CONFIG_NAME).toFile(), LOGGER, Arrays.asList(new ConfigUtils.IConfigValue[] {
             new ConfigUtils.BooleanConfigValue("homes", true,
@@ -105,10 +111,14 @@ public class EnderNexus implements ModInitializer {
    
       CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
          dispatcher.register(config.generateCommand("endernexus"));
-   
-         dispatcher.register(literal("spawn")
+         
+         dispatcher.register(literal("spawntp")
                .executes(this::spawnTp));
-   
+         
+         if(!hasCarpet){
+            dispatcher.register(literal("spawn")
+                  .executes(this::spawnTp));
+         }
    
          dispatcher.register(literal("sethome")
                .executes(ctx -> setHome(ctx,null))
