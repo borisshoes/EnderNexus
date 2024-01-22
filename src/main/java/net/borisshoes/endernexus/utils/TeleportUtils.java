@@ -11,7 +11,6 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.LiteralTextContent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -49,7 +48,7 @@ public class TeleportUtils {
                   finalStandStillBar.removePlayer(whoFinal[0]);
                   server.getBossBarManager().remove(finalStandStillBar);
                } else {
-                  whoFinal[0].sendMessage(MutableText.of(new LiteralTextContent("Teleporting!")).formatted(Formatting.LIGHT_PURPLE), true);
+                  whoFinal[0].sendMessage(Text.literal("Teleporting!").formatted(Formatting.LIGHT_PURPLE), true);
                }
    
                SERVER_TIMER_CALLBACKS_QUEUE.put(UUID.randomUUID(), new GenericTimer(10, new TimerTask() {
@@ -90,9 +89,9 @@ public class TeleportUtils {
                finalStandStillBar.setPercent((counter[0] / (float)standStillTime));
                finalStandStillBar.setName(Text.literal("Teleport Charging: "+((counter[0]/20)+1)+" Seconds Remaining").formatted(Formatting.LIGHT_PURPLE));
             } else {
-               whoFinal[0].sendMessage(MutableText.of(new LiteralTextContent("Stand still for ")).formatted(Formatting.LIGHT_PURPLE)
-                     .append(MutableText.of(new LiteralTextContent(Integer.toString(counter[0]/20))).formatted(Formatting.GREEN))
-                     .append(MutableText.of(new LiteralTextContent(" more seconds!")).formatted(Formatting.LIGHT_PURPLE)), true);
+               whoFinal[0].sendMessage(Text.literal("Stand still for ").formatted(Formatting.LIGHT_PURPLE)
+                     .append(Text.literal(Integer.toString(counter[0]/20)).formatted(Formatting.GREEN))
+                     .append(Text.literal(" more seconds!").formatted(Formatting.LIGHT_PURPLE)), true);
             }
    
             if(whoFinal[0] == null){
@@ -101,10 +100,8 @@ public class TeleportUtils {
                server.getBossBarManager().remove(finalStandStillBar);
                return;
             }
-            whoFinal[0].networkHandler.sendPacket(new SubtitleS2CPacket(MutableText.of(new LiteralTextContent("Please stand still..."))
-                  .formatted(Formatting.GREEN, Formatting.ITALIC)));
-            whoFinal[0].networkHandler.sendPacket(new TitleS2CPacket(MutableText.of(new LiteralTextContent("Teleporting!"))
-                  .formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD)));
+            whoFinal[0].networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Please stand still...").formatted(Formatting.GREEN, Formatting.ITALIC)));
+            whoFinal[0].networkHandler.sendPacket(new TitleS2CPacket(Text.literal("Teleporting!").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD)));
    
             if(SERVER_TIMER_CALLBACKS.containsKey(timerId)){
                SERVER_TIMER_CALLBACKS.get(timerId).setTimer(4);
