@@ -2,6 +2,7 @@ package net.borisshoes.endernexus.cca;
 
 import net.borisshoes.endernexus.Destination;
 import net.minecraft.nbt.*;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 
@@ -30,7 +31,7 @@ public class DestinationComponent implements IDestinationComponent{
    }
    
    @Override
-   public void readFromNbt(NbtCompound tag){
+   public void readFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup){
       try{
          destinations.clear();
          NbtList destsTag = tag.getList("Destinations", NbtElement.COMPOUND_TYPE);
@@ -48,7 +49,7 @@ public class DestinationComponent implements IDestinationComponent{
    }
    
    @Override
-   public void writeToNbt(NbtCompound tag){
+   public void writeToNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup){
       try{
          NbtList destsTag = new NbtList();
          for(Destination dest : destinations){
