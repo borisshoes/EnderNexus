@@ -8,7 +8,7 @@ import org.ladysnake.cca.api.v3.entity.RespawnCopyStrategy;
 import net.minecraft.util.Identifier;
 
 public class PlayerComponentInitializer implements EntityComponentInitializer {
-   public static final ComponentKey<IDestinationComponent> HOMES = ComponentRegistryV3.INSTANCE.getOrCreate(new Identifier("endernexus", "homes"), IDestinationComponent.class);
+   public static final ComponentKey<IDestinationComponent> HOMES = ComponentRegistryV3.INSTANCE.getOrCreate(Identifier.of("endernexus", "homes"), IDestinationComponent.class);
    
    @Override
    public void registerEntityComponentFactories(EntityComponentFactoryRegistry registry) {

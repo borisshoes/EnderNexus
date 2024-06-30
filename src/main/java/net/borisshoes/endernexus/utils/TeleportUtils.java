@@ -31,7 +31,7 @@ public class TeleportUtils {
       final Vec3d[] lastPos = {who.getPos()};
       CommandBossBar standStillBar = null;
       if (bossBar) {
-         standStillBar = server.getBossBarManager().add(new Identifier("standstill-" + who.getUuidAsString()+"-"+ UUID.randomUUID()), Text.literal("Teleport Charging: "+((counter[0]/20)+1)+" Seconds Remaining").formatted(Formatting.LIGHT_PURPLE));
+         standStillBar = server.getBossBarManager().add(Identifier.of("standstill-" + who.getUuidAsString()+"-"+ UUID.randomUUID()), Text.literal("Teleport Charging: "+((counter[0]/20)+1)+" Seconds Remaining").formatted(Formatting.LIGHT_PURPLE));
          standStillBar.addPlayer(who);
          standStillBar.setColor(BossBar.Color.GREEN);
       }
