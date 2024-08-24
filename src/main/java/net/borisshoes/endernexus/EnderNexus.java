@@ -27,9 +27,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.dimension.NetherPortal;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -74,8 +79,12 @@ public class EnderNexus implements ModInitializer {
                   new ConfigUtils.Command("Spawn allowed: %s", "Spawn now allowed: %s")),
             new ConfigUtils.BooleanConfigValue("tpas", true,
                   new ConfigUtils.Command("TPAs allowed: %s", "TPAs now allowed: %s")),
+            new ConfigUtils.BooleanConfigValue("tpaheres", true,
+                  new ConfigUtils.Command("TPA Here allowed: %s", "TPA Here now allowed: %s")),
             new ConfigUtils.BooleanConfigValue("warps", true,
                   new ConfigUtils.Command("Warps allowed: %s", "Warps now allowed: %s")),
+            new ConfigUtils.BooleanConfigValue("randomtps", true,
+                  new ConfigUtils.Command("Random TPs allowed: %s", "Random TPs now allowed: %s")),
       
             new ConfigUtils.BooleanConfigValue("bossbar", true,
                   new ConfigUtils.Command("Show Bossbar: %s", "Show Bossbar is now: %s")),
@@ -106,7 +115,14 @@ public class EnderNexus implements ModInitializer {
             new ConfigUtils.IntegerConfigValue("warps-warmup", 120, new ConfigUtils.IntegerConfigValue.IntLimits(1,1000000),
                   new ConfigUtils.Command("Warps Warmup time: %s ticks", "Warps Warmup time set to: %s ticks")),
             new ConfigUtils.IntegerConfigValue("warps-cooldown", 1200, new ConfigUtils.IntegerConfigValue.IntLimits(1,1000000),
-                  new ConfigUtils.Command("Warps Cooldown time: %s ticks", "Warps Cooldown time set to: %s ticks"))
+                  new ConfigUtils.Command("Warps Cooldown time: %s ticks", "Warps Cooldown time set to: %s ticks")),
+            
+            new ConfigUtils.IntegerConfigValue("rtp-warmup", 200, new ConfigUtils.IntegerConfigValue.IntLimits(1,1000000),
+                  new ConfigUtils.Command("Random TP Warmup time: %s ticks", "Random TP Warmup time set to: %s ticks")),
+            new ConfigUtils.IntegerConfigValue("rtp-cooldown", 12000, new ConfigUtils.IntegerConfigValue.IntLimits(1,1000000),
+                  new ConfigUtils.Command("Random TP Cooldown time: %s ticks", "Random TP Cooldown time set to: %s ticks")),
+            new ConfigUtils.IntegerConfigValue("rtp-range", 1000, new ConfigUtils.IntegerConfigValue.IntLimits(1,1000000),
+                  new ConfigUtils.Command("Random TP Range: %s blocks", "Random TP Range set to: %s blocks")),
       }));
    
       CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
@@ -119,6 +135,12 @@ public class EnderNexus implements ModInitializer {
             dispatcher.register(literal("spawn")
                   .executes(this::spawnTp));
          }
+         
+         dispatcher.register(literal("rtp")
+               .executes(this::randomTp));
+         
+         dispatcher.register(literal("randomtp")
+               .executes(this::randomTp));
    
          dispatcher.register(literal("sethome")
                .executes(ctx -> setHome(ctx,null))
@@ -151,7 +173,11 @@ public class EnderNexus implements ModInitializer {
    
          dispatcher.register(literal("tpa")
                .then(argument("target", EntityArgumentType.player()).suggests(this::getTpaInitSuggestions)
-                     .executes(ctx -> tpaInit(ctx, getPlayer(ctx, "target")))));
+                     .executes(ctx -> tpaInit(ctx, getPlayer(ctx, "target"), false))));
+         
+         dispatcher.register(literal("tpahere")
+               .then(argument("target", EntityArgumentType.player()).suggests(this::getTpaInitSuggestions)
+                     .executes(ctx -> tpaInit(ctx, getPlayer(ctx, "target"), true))));
    
          dispatcher.register(literal("tpaaccept")
                .then(argument("target", EntityArgumentType.player()).suggests(this::getTpaTargetSuggestions)
@@ -234,26 +260,30 @@ public class EnderNexus implements ModInitializer {
    }
    
    
-   public int tpaInit(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo){
+   public int tpaInit(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo, boolean tpahere){
       if(!ctx.getSource().isExecutedByPlayer()){
          ctx.getSource().sendError(Text.literal("Teleports must be done by a player!").formatted(Formatting.RED));
          return -1;
       }
       final ServerPlayerEntity tFrom = ctx.getSource().getPlayer();
-      if(!(boolean) config.getValue("tpas")){
+      
+      if(tpahere && !(boolean) config.getValue("tpaheres")){
+         tFrom.sendMessage(Text.literal("TPA Heres are disabled!").formatted(Formatting.RED),false);
+         return -1;
+      }else if(!tpahere && !(boolean) config.getValue("tpas")){
          tFrom.sendMessage(Text.literal("TPAs are disabled!").formatted(Formatting.RED),false);
          return -1;
       }
       
       if (tFrom.equals(tTo)) {
          tFrom.sendMessage(Text.literal("You cannot request to TPA to yourself!").formatted(Formatting.RED), false);
-         return -11;
+         return -1;
       }
    
       if(checkCooldown(TPType.TPA,tFrom)) return -1;
       if(activeChannels(tFrom)) return -1;
       
-      TPARequest tpa = new TPARequest(tFrom, tTo);
+      TPARequest tpa = new TPARequest(tFrom, tTo, tpahere);
       if (activeTpas.values().stream().anyMatch(TPARequest -> TPARequest.equals(tpa))) {
          tFrom.sendMessage(Text.literal("There is already an ongoing request like this!").formatted(Formatting.RED), false);
          return 1;
@@ -262,9 +292,14 @@ public class EnderNexus implements ModInitializer {
       tpa.setTimeoutCallback();
       activeTpas.put(tFrom.getUuid(),tpa);
       
-      tFrom.sendMessage(
-            Text.literal("You have requested to TPA to ").formatted(Formatting.LIGHT_PURPLE)
+      MutableText senderText = tpahere ?
+            Text.literal("You have requested that ").formatted(Formatting.LIGHT_PURPLE)
                   .append(Text.literal(tTo.getName().getString()).formatted(Formatting.AQUA))
+                  .append(Text.literal(" TPA to you ").formatted(Formatting.LIGHT_PURPLE)):
+            Text.literal("You have requested to TPA to ").formatted(Formatting.LIGHT_PURPLE)
+                  .append(Text.literal(tTo.getName().getString()).formatted(Formatting.AQUA));
+      
+      tFrom.sendMessage(senderText
                   .append(Text.literal("\nTo cancel type ").formatted(Formatting.LIGHT_PURPLE))
                   .append(Text.literal("/tpacancel [<player>]").styled(s ->
                         s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpacancel " + tTo.getName().getString()))
@@ -275,7 +310,7 @@ public class EnderNexus implements ModInitializer {
       
       tTo.sendMessage(
             Text.literal(tFrom.getName().getString()).formatted(Formatting.AQUA)
-                  .append(Text.literal(" has requested to TPA to you!").formatted(Formatting.LIGHT_PURPLE))
+                  .append(Text.literal(tpahere ? " has requested that you TPA to them!" : " has requested to TPA to you!").formatted(Formatting.LIGHT_PURPLE))
                   .append(Text.literal("\nTo accept type ").formatted(Formatting.LIGHT_PURPLE))
                   .append(Text.literal("/tpaaccept [<player>]").styled(s ->
                         s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpaaccept " + tFrom.getName().getString()))
@@ -297,10 +332,6 @@ public class EnderNexus implements ModInitializer {
          return -1;
       }
       final ServerPlayerEntity tTo = ctx.getSource().getPlayer();
-      if(!(boolean) config.getValue("tpas")){
-         tTo.sendMessage(Text.literal("TPAs are disabled!").formatted(Formatting.RED),false);
-         return -1;
-      }
       
       if (tFrom == null) {
          TPARequest[] candidates;
@@ -325,16 +356,36 @@ public class EnderNexus implements ModInitializer {
       TPARequest tr = getTPARequest(tFrom, tTo, TPAAction.ACCEPT);
       if (tr == null) return 1;
       
+      if(!tr.isTPAhere() && !(boolean) config.getValue("tpas")){
+         tTo.sendMessage(Text.literal("TPAs are disabled!").formatted(Formatting.RED),false);
+         return -1;
+      }else if(tr.isTPAhere() && !(boolean) config.getValue("tpaheres")){
+         tTo.sendMessage(Text.literal("TPA Heres are disabled!").formatted(Formatting.RED),false);
+         return -1;
+      }
+      
       ServerPlayerEntity finalTFrom = tFrom;
-      TeleportUtils.genericTeleport(
-            (boolean) config.getValue("bossbar"),
-            (boolean) config.getValue("particles"),
-            (boolean) config.getValue("sound"),
-            (int) config.getValue("spawn-warmup"),
-            tFrom, () -> {
-               finalTFrom.teleport(tTo.getServerWorld(), tTo.getPos().getX(),tTo.getPos().getY(),tTo.getPos().getZ(),finalTFrom.getYaw(),finalTFrom.getPitch());
-               recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
-            });
+      if(tr.isTPAhere()){
+         TeleportUtils.genericTeleport(
+               (boolean) config.getValue("bossbar"),
+               (boolean) config.getValue("particles"),
+               (boolean) config.getValue("sound"),
+               (int) config.getValue("spawn-warmup"),
+               tTo, () -> {
+                  tTo.teleport(finalTFrom.getServerWorld(), finalTFrom.getPos().getX(),finalTFrom.getPos().getY(),finalTFrom.getPos().getZ(),tTo.getYaw(),tTo.getPitch());
+                  recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
+               });
+      }else{
+         TeleportUtils.genericTeleport(
+               (boolean) config.getValue("bossbar"),
+               (boolean) config.getValue("particles"),
+               (boolean) config.getValue("sound"),
+               (int) config.getValue("spawn-warmup"),
+               tFrom, () -> {
+                  finalTFrom.teleport(tTo.getServerWorld(), tTo.getPos().getX(),tTo.getPos().getY(),tTo.getPos().getZ(),finalTFrom.getYaw(),finalTFrom.getPitch());
+                  recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
+               });
+      }
       
       tr.cancelTimeout();
       activeTpas.remove(tFrom.getUuid());
@@ -351,10 +402,6 @@ public class EnderNexus implements ModInitializer {
          return -1;
       }
       final ServerPlayerEntity tTo = ctx.getSource().getPlayer();
-      if(!(boolean) config.getValue("tpas")){
-         tTo.sendMessage(Text.literal("TPAs are disabled!").formatted(Formatting.RED),false);
-         return -1;
-      }
       
       if (tFrom == null) {
          TPARequest[] candidates;
@@ -378,6 +425,14 @@ public class EnderNexus implements ModInitializer {
       
       TPARequest tr = getTPARequest(tFrom, tTo, TPAAction.DENY);
       if (tr == null) return 1;
+      if(!tr.isTPAhere() && !(boolean) config.getValue("tpas")){
+         tTo.sendMessage(Text.literal("TPAs are disabled!").formatted(Formatting.RED),false);
+         return -1;
+      }else if(tr.isTPAhere() && !(boolean) config.getValue("tpaheres")){
+         tTo.sendMessage(Text.literal("TPA Heres are disabled!").formatted(Formatting.RED),false);
+         return -1;
+      }
+      
       tr.cancelTimeout();
       activeTpas.remove(tFrom.getUuid());
       tr.tTo.sendMessage(Text.literal("You have cancelled the TPA request!").formatted(Formatting.RED), false);
@@ -392,10 +447,6 @@ public class EnderNexus implements ModInitializer {
          return -1;
       }
       final ServerPlayerEntity tFrom = ctx.getSource().getPlayer();
-      if(!(boolean) config.getValue("tpas")){
-         tFrom.sendMessage(Text.literal("TPAs are disabled!").formatted(Formatting.RED),false);
-         return -1;
-      }
       
       if (tTo == null) {
          TPARequest[] candidates;
@@ -419,6 +470,14 @@ public class EnderNexus implements ModInitializer {
       
       TPARequest tr = getTPARequest(tFrom, tTo, TPAAction.CANCEL);
       if (tr == null) return 1;
+      if(!tr.isTPAhere() && !(boolean) config.getValue("tpas")){
+         tTo.sendMessage(Text.literal("TPAs are disabled!").formatted(Formatting.RED),false);
+         return -1;
+      }else if(tr.isTPAhere() && !(boolean) config.getValue("tpaheres")){
+         tTo.sendMessage(Text.literal("TPA Heres are disabled!").formatted(Formatting.RED),false);
+         return -1;
+      }
+      
       tr.cancelTimeout();
       activeTpas.remove(tFrom.getUuid());
       tr.tFrom.sendMessage(Text.literal("You have cancelled the TPA request!").formatted(Formatting.RED), false);
@@ -452,6 +511,62 @@ public class EnderNexus implements ModInitializer {
                   recentTeleports.add(new Teleport(player,TPType.SPAWN,System.currentTimeMillis()));
                });
          return 1;
+      }catch(Exception e){
+         e.printStackTrace();
+      }
+      return -1;
+   }
+   
+   private int randomTp(CommandContext<ServerCommandSource> ctx){
+      try{
+         if(!ctx.getSource().isExecutedByPlayer()){
+            ctx.getSource().sendError(Text.literal("Teleports must be done by a player!").formatted(Formatting.RED));
+            return -1;
+         }
+         ServerPlayerEntity player = ctx.getSource().getPlayer();
+         if(!(boolean) config.getValue("randomtps")){
+            player.sendMessage(Text.literal("/randomtp is disabled!").formatted(Formatting.RED),false);
+            return -1;
+         }
+         if(checkCooldown(TPType.RTP,player)) return -1;
+         if(activeChannels(player)) return -1;
+         ServerWorld world = player.getServer().getWorld(ServerWorld.OVERWORLD);
+         
+         int range = (int) config.getValue("rtp-range");
+         int tries = 0;
+         
+         while(tries < 100){
+            double angle = 2 * Math.PI * Math.random();
+            double r = range * Math.sqrt(Math.random());
+            int x = (int) (r * Math.cos(angle)) + world.getSpawnPos().getX();
+            int z = (int) (r * Math.sin(angle)) + world.getSpawnPos().getZ();
+            
+            int placeTries = 0; int spread = 4;
+            ArrayList<BlockPos> locations;
+            do{
+               locations = TeleportUtils.makeSpawnLocations(1,spread, world.getLogicalHeight(), world, new BlockPos(x,world.getLogicalHeight(),z));
+               placeTries++; spread++; // Expand search area
+            }while(locations.isEmpty() && placeTries < 5);
+            if(locations.isEmpty()){
+               tries++;
+               continue;
+            }
+            Vec3d pos = locations.get(0).toCenterPos();
+            
+            TeleportUtils.genericTeleport(
+                  (boolean) config.getValue("bossbar"),
+                  (boolean) config.getValue("particles"),
+                  (boolean) config.getValue("sound"),
+                  (int) config.getValue("rtp-warmup"),
+                  player, () -> {
+                     player.teleport(world, pos.getX(),pos.getY(),pos.getZ(),player.getYaw(),player.getPitch());
+                     recentTeleports.add(new Teleport(player,TPType.RTP,System.currentTimeMillis()));
+                  });
+            return 1;
+         }
+         
+         player.sendMessage(Text.literal("Could not find a valid RTP spot!").formatted(Formatting.RED,Formatting.ITALIC),false);
+         return 0;
       }catch(Exception e){
          e.printStackTrace();
       }
@@ -768,11 +883,12 @@ public class EnderNexus implements ModInitializer {
          case HOME -> (int)config.getValue("homes-cooldown");
          case WARP -> (int)config.getValue("warps-cooldown");
          case SPAWN -> (int)config.getValue("spawn-cooldown");
+         case RTP -> (int)config.getValue("rtp-cooldown");
       };
    }
    
    private enum TPType{
-      HOME("home"), TPA("tpa"), WARP("warp"), SPAWN("spawn");
+      HOME("home"), TPA("tpa"), WARP("warp"), SPAWN("spawn"), RTP("rtp");
    
       public final String label;
       
@@ -807,12 +923,22 @@ public class EnderNexus implements ModInitializer {
    static class TPARequest {
       ServerPlayerEntity tFrom;
       ServerPlayerEntity tTo;
+      boolean tpahere;
       
       UUID timerId;
       
-      public TPARequest(ServerPlayerEntity tFrom, ServerPlayerEntity tTo) {
+      public TPARequest(ServerPlayerEntity tFrom, ServerPlayerEntity tTo, boolean tpahere) {
          this.tFrom = tFrom;
          this.tTo = tTo;
+         this.tpahere = tpahere;
+      }
+      
+      String getStr(){
+         return tpahere ? "TPA Here" : "TPA";
+      }
+      
+      public boolean isTPAhere(){
+         return tpahere;
       }
       
       void setTimeoutCallback() {
@@ -820,8 +946,8 @@ public class EnderNexus implements ModInitializer {
             @Override
             public void run(){
                activeTpas.remove(tFrom.getUuid());
-               tFrom.sendMessage(Text.literal("Your TPA request to " + tTo.getName().getString() + " has timed out!").formatted(Formatting.RED), false);
-               tTo.sendMessage(Text.literal("TPA request from " + tFrom.getName().getString() + " has timed out!").formatted(Formatting.RED), false);
+               tFrom.sendMessage(Text.literal("Your "+getStr()+" request to " + tTo.getName().getString() + " has timed out!").formatted(Formatting.RED), false);
+               tTo.sendMessage(Text.literal(getStr()+" request from " + tFrom.getName().getString() + " has timed out!").formatted(Formatting.RED), false);
             }
          });
          
@@ -838,8 +964,7 @@ public class EnderNexus implements ModInitializer {
          if (this == o) return true;
          if (o == null || getClass() != o.getClass()) return false;
          TPARequest that = (TPARequest) o;
-         return tFrom.equals(that.tFrom) &&
-               tTo.equals(that.tTo);
+         return this.tFrom.equals(that.tFrom) && this.tTo.equals(that.tTo);
       }
       
       @Override

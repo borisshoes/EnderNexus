@@ -12,9 +12,12 @@ An all-in-one server-sided mod to give players various common teleport commands.
 * ```/delhome [name]``` Deletes a player's home with optional name
 * ```/warp <name>``` Teleports the player to the specified warp
 * ```/tpa <player>``` Requests to teleport to the specified player
+* ```/tpahere <player>``` Requests the specified player teleport to you
 * ```/tpaaccept [player]``` Accepts an incoming TPA request from the specified player
 * ```/tpadeny [player]``` Denies an incoming TPA request from the specified player
-* ```/tpacancel [player]``` Cancels an outgoing TPA request to the specified player
+* ```/tpacancel [player]``` Cancels an outgoing TPA request to the specified player.
+* ```/randomtp``` Teleports the player to a random spot in the world within the configured radius.
+* ```/rtp``` Shortened alias for /randomtp
 
 ### Admin Commands & Configuration
 Configuration can be done through the properties file generated when loaded on a server or through commands.
@@ -35,9 +38,14 @@ Configuration can be done through the properties file generated when loaded on a
 * ```/endernexus spawn-warmup <1+>``` Sets the number of ticks it takes to teleport to spawn
 * ```/endernexus spawn-cooldown <1+>``` Sets the number of ticks before a player can teleport to spawn again
 * ```/endernexus tpas <true/false>``` Enables/Disables the TPAs feature
+* ```/endernexus tpaheres <true/false>``` Enables/Disables the TPA Here feature
 * ```/endernexus tpa-warmup <1+>``` Sets the number of ticks it takes to teleport to another player
 * ```/endernexus tpa-cooldown <1+>``` Sets the number of ticks before a player can teleport to another player again
 * ```/endernexus tpa-timeout <1+>``` Sets the number of ticks before a tpa request expires
+* ```/endernexus randomtps <true/false>``` Enables/Disables the Warps feature
+* ```/endernexus rtp-warmup <1+>``` Sets the number of ticks it takes to teleport to a random spot
+* ```/endernexus rtp-cooldown <1+>``` Sets the number of ticks before a player can teleport to a random spot again
+* ```/endernexus rtp-range <1+>``` Sets the circular radius, in blocks, that a random tp can put the player, centered at the world spawn
 * ```/endernexus cleanse``` Clears the cache (useful if someone gets stuck with a teleport bar that doesn't clear)
 
 ### LICENSE NOTICE

@@ -1,22 +1,32 @@
 package net.borisshoes.endernexus.utils;
 
 import net.borisshoes.endernexus.EnderNexus;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.ai.pathing.LandPathNodeMaker;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.CommandBossBar;
+import net.minecraft.fluid.FluidState;
 import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.BlockView;
 
+import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -109,5 +119,46 @@ public class TeleportUtils {
          }
       },false,who);
       SERVER_TIMER_CALLBACKS.put(timerId,timer);
+   }
+   
+   
+   private static int getY(BlockView blockView, int maxY, Vec3d pos) {
+      BlockPos.Mutable mutable = new BlockPos.Mutable(pos.x, maxY + 1, pos.z);
+      boolean bl = blockView.getBlockState(mutable).isAir();
+      mutable.move(Direction.DOWN);
+      boolean bl2 = blockView.getBlockState(mutable).isAir();
+      while (mutable.getY() > blockView.getBottomY()) {
+         mutable.move(Direction.DOWN);
+         boolean bl3 = blockView.getBlockState(mutable).isAir();
+         if (!bl3 && bl2 && bl) {
+            return mutable.getY() + 1;
+         }
+         bl = bl2;
+         bl2 = bl3;
+      }
+      return maxY + 1;
+   }
+   
+   public static boolean isSafe(BlockView world, int maxY, Vec3d pos) {
+      BlockPos blockPos = BlockPos.ofFloored(pos.x, getY(world, maxY, pos) - 1, pos.z);
+      BlockState blockState = world.getBlockState(blockPos);
+      FluidState fluidState = world.getFluidState(blockPos);
+      boolean invalid = blockState.isOf(Blocks.WITHER_ROSE) || blockState.isOf(Blocks.SWEET_BERRY_BUSH) || blockState.isOf(Blocks.CACTUS) || blockState.isOf(Blocks.POWDER_SNOW) || blockState.isIn(BlockTags.PREVENT_MOB_SPAWNING_INSIDE) || LandPathNodeMaker.isFireDamaging(blockState);
+      return blockPos.getY() < maxY && fluidState.isEmpty() && !invalid;
+   }
+   
+   public static ArrayList<BlockPos> makeSpawnLocations(int num, int range, int maxY, ServerWorld world, BlockPos center){
+      ArrayList<BlockPos> positions = new ArrayList<>();
+      for(int i = 0; i < num; i++){
+         int tries = 0;
+         int x,z;
+         do{
+            x = center.getX() + (int) (Math.random() * range * 2 - range);
+            z = center.getZ() + (int) (Math.random() * range * 2 - range);
+            tries++;
+         }while(!isSafe(world,maxY, new Vec3d(x,0,z)) && tries < 10000);
+         positions.add(BlockPos.ofFloored(x,getY(world,maxY,new Vec3d(x,0,z)),z));
+      }
+      return positions;
    }
 }
