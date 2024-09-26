@@ -1,47 +1,34 @@
 package net.borisshoes.endernexus;
 
-import carpet.CarpetSettings;
-import carpet.utils.CommandHelper;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.borisshoes.endernexus.utils.ConfigUtils;
 import net.borisshoes.endernexus.utils.GenericTimer;
 import net.borisshoes.endernexus.utils.TeleportTimer;
 import net.borisshoes.endernexus.utils.TeleportUtils;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.boss.BossBarManager;
-import net.minecraft.entity.boss.CommandBossBar;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.recipe.ShapelessRecipe;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.dimension.NetherPortal;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -135,6 +122,9 @@ public class EnderNexus implements ModInitializer {
             dispatcher.register(literal("spawn")
                   .executes(this::spawnTp));
          }
+         
+         dispatcher.register(literal("tpinterrupt")
+               .executes(this::interruptTp));
          
          dispatcher.register(literal("rtp")
                .executes(this::randomTp));
@@ -257,6 +247,31 @@ public class EnderNexus implements ModInitializer {
    private CompletableFuture<Suggestions> getTpaSenderSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
       List<String> activeTargets = activeTpas.values().stream().map(TPARequest -> TPARequest.tTo.getName().getString()).collect(Collectors.toList());
       return filterSuggestionsByInput(builder, activeTargets);
+   }
+   
+   private int interruptTp(CommandContext<ServerCommandSource> ctx){
+      if(!ctx.getSource().isExecutedByPlayer()){
+         ctx.getSource().sendError(Text.literal("Teleports must be done by a player!").formatted(Formatting.RED));
+         return -1;
+      }
+      
+      final ServerPlayerEntity player = ctx.getSource().getPlayer();
+      
+      boolean active = SERVER_TIMER_CALLBACKS.entrySet().stream().anyMatch(t -> (t.getValue() instanceof TeleportTimer tp) && tp.player.getUuid().equals(player.getUuid()));
+      if(!active){
+         player.sendMessage(Text.literal("You are not channeling a teleport").formatted(Formatting.RED),false);
+         return 0;
+      }else{
+         Optional<Map.Entry<UUID, GenericTimer>> activeTP = SERVER_TIMER_CALLBACKS.entrySet().stream().filter(t -> (t.getValue() instanceof TeleportTimer tp) && tp.player.getUuid().equals(player.getUuid())).findFirst();
+         activeTP.ifPresent(uuidGenericTimerEntry -> SERVER_TIMER_CALLBACKS.remove(uuidGenericTimerEntry.getKey()));
+         
+         BossBarManager bbm = ctx.getSource().getServer().getBossBarManager();
+         bbm.getAll().stream().filter(b -> b.getId().toString().contains("standstill-") && b.getId().toString().contains(player.getUuidAsString())).toList().forEach(b -> {
+            b.clearPlayers();
+            bbm.remove(b);
+         });
+      }
+      return 1;
    }
    
    
@@ -530,7 +545,7 @@ public class EnderNexus implements ModInitializer {
          }
          if(checkCooldown(TPType.RTP,player)) return -1;
          if(activeChannels(player)) return -1;
-         ServerWorld world = player.getServer().getWorld(ServerWorld.OVERWORLD);
+         ServerWorld world = player.getServerWorld();
          
          int range = (int) config.getValue("rtp-range");
          int tries = 0;
@@ -544,7 +559,7 @@ public class EnderNexus implements ModInitializer {
             int placeTries = 0; int spread = 4;
             ArrayList<BlockPos> locations;
             do{
-               locations = TeleportUtils.makeSpawnLocations(1,spread, world.getLogicalHeight(), world, new BlockPos(x,world.getLogicalHeight(),z));
+               locations = TeleportUtils.makeSpawnLocations(1,spread, world.getLogicalHeight()-10, world, new BlockPos(x,world.getLogicalHeight(),z));
                placeTries++; spread++; // Expand search area
             }while(locations.isEmpty() && placeTries < 5);
             if(locations.isEmpty()){
@@ -853,7 +868,7 @@ public class EnderNexus implements ModInitializer {
    
    private boolean checkCooldown(TPType type, ServerPlayerEntity player){
       for(Teleport tp : recentTeleports){
-         if(!tp.player.equals(player)) continue;
+         if(!tp.player.getUuidAsString().equals(player.getUuidAsString())) continue;
          if(tp.type != type) continue;
          if(System.currentTimeMillis() - tp.timestamp < readConfigCooldown(type) * 50L){
             int remaining = (int) (((readConfigCooldown(type) * 50L) - (System.currentTimeMillis() - tp.timestamp)) / 1000);
@@ -866,7 +881,7 @@ public class EnderNexus implements ModInitializer {
    
    private boolean checkTPAHereCooldown(ServerPlayerEntity tFrom, ServerPlayerEntity tTo){
       for(Teleport tp : recentTeleports){
-         if(!tp.player.equals(tFrom)) continue;
+         if(!tp.player.getUuidAsString().equals(tFrom.getUuidAsString())) continue;
          if(tp.type != TPType.TPA) continue;
          if(System.currentTimeMillis() - tp.timestamp < readConfigCooldown(TPType.TPA) * 50L){
             int remaining = (int) (((readConfigCooldown(TPType.TPA) * 50L) - (System.currentTimeMillis() - tp.timestamp)) / 1000);

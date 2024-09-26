@@ -18,6 +18,7 @@ An all-in-one server-sided mod to give players various common teleport commands.
 * ```/tpacancel [player]``` Cancels an outgoing TPA request to the specified player.
 * ```/randomtp``` Teleports the player to a random spot in the world within the configured radius.
 * ```/rtp``` Shortened alias for /randomtp
+* ```/tpinterrupt``` Cancels an active TP channel
 
 ### Admin Commands & Configuration
 Configuration can be done through the properties file generated when loaded on a server or through commands.

@@ -40,7 +40,15 @@ public class ConfigUtils {
       try(InputStream input = new FileInputStream(file)){
          logger.debug("Reading config...");
          props.load(input);
-         this.values.forEach(value -> value.value = value.getFromProps(props));
+         
+         for(IConfigValue value : this.values){
+            Object defaultValue = value.defaultValue;
+            try{
+               value.value = value.getFromProps(props);
+            }catch(Exception e){
+               value.value = defaultValue;
+            }
+         }
       }catch(FileNotFoundException ignored){
          logger.debug("Initialising config...");
          this.values.forEach(value -> value.value = value.defaultValue);
