@@ -23,6 +23,7 @@ import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.TeleportTarget;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -207,8 +208,8 @@ public class EnderNexus implements ModInitializer {
    
    @Nullable
    private static CompletableFuture<Suggestions> filterSuggestionsByInput(SuggestionsBuilder builder, List<String> values) {
-      String start = builder.getRemaining().toLowerCase();
-      values.stream().filter(s -> s.toLowerCase().startsWith(start)).forEach(builder::suggest);
+      String start = builder.getRemaining().toLowerCase(Locale.ROOT);
+      values.stream().filter(s -> s.toLowerCase(Locale.ROOT).startsWith(start)).forEach(builder::suggest);
       return builder.buildFuture();
    }
    
@@ -387,7 +388,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("spawn-warmup"),
                tTo, () -> {
-                  tTo.teleport(finalTFrom.getServerWorld(), finalTFrom.getPos().getX(),finalTFrom.getPos().getY(),finalTFrom.getPos().getZ(),tTo.getYaw(),tTo.getPitch());
+                  tTo.teleportTo(new TeleportTarget(finalTFrom.getServerWorld(), finalTFrom.getPos(), Vec3d.ZERO, tTo.getYaw(),tTo.getPitch(), TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
                });
       }else{
@@ -397,7 +398,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("spawn-warmup"),
                tFrom, () -> {
-                  finalTFrom.teleport(tTo.getServerWorld(), tTo.getPos().getX(),tTo.getPos().getY(),tTo.getPos().getZ(),finalTFrom.getYaw(),finalTFrom.getPitch());
+                  finalTFrom.teleportTo(new TeleportTarget(tTo.getServerWorld(), tTo.getPos(), Vec3d.ZERO, finalTFrom.getYaw(),finalTFrom.getPitch(), TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
                });
       }
@@ -522,7 +523,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("spawn-warmup"),
                player, () -> {
-                  player.teleport(world, world.getSpawnPos().getX(),world.getSpawnPos().getY(),world.getSpawnPos().getZ(),world.getSpawnAngle(),0.0f);
+                  player.teleportTo(new TeleportTarget(world, world.getSpawnPos().toBottomCenterPos(), Vec3d.ZERO, world.getSpawnAngle(),0.0f, TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(player,TPType.SPAWN,System.currentTimeMillis()));
                });
          return 1;
@@ -574,7 +575,7 @@ public class EnderNexus implements ModInitializer {
                   (boolean) config.getValue("sound"),
                   (int) config.getValue("rtp-warmup"),
                   player, () -> {
-                     player.teleport(world, pos.getX(),pos.getY(),pos.getZ(),player.getYaw(),player.getPitch());
+                     player.teleportTo(new TeleportTarget(world, pos, Vec3d.ZERO, player.getYaw(),player.getPitch(), TeleportTarget.NO_OP));
                      recentTeleports.add(new Teleport(player,TPType.RTP,System.currentTimeMillis()));
                   });
             return 1;
@@ -694,7 +695,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("homes-warmup"),
                player, () -> {
-                  player.teleport(world, home.getPos().getX(),home.getPos().getY(),home.getPos().getZ(),home.getRotation().y,home.getRotation().x);
+                  player.teleportTo(new TeleportTarget(world, home.getPos(), Vec3d.ZERO, home.getRotation().y,home.getRotation().x, TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(player,TPType.HOME,System.currentTimeMillis()));
                });
    
@@ -792,7 +793,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("warps-warmup"),
                player, () -> {
-                  player.teleport(world, warp.getPos().getX(),warp.getPos().getY(),warp.getPos().getZ(),warp.getRotation().y,warp.getRotation().x);
+                  player.teleportTo(new TeleportTarget(world, warp.getPos(), Vec3d.ZERO, warp.getRotation().y,warp.getRotation().x, TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(player,TPType.WARP,System.currentTimeMillis()));
                });
          player.sendMessage(Text.literal("Now warping to '"+name+"'").formatted(Formatting.LIGHT_PURPLE),false);
