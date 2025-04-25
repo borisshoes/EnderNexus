@@ -8,6 +8,7 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class DestinationComponent implements IDestinationComponent{
    
@@ -34,14 +35,15 @@ public class DestinationComponent implements IDestinationComponent{
    public void readFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup){
       try{
          destinations.clear();
-         NbtList destsTag = tag.getList("Destinations", NbtElement.COMPOUND_TYPE);
+         // TODO: handle optionals in a safer way?
+         NbtList destsTag = tag.getListOrEmpty("Destinations");
          for (NbtElement e : destsTag) {
             NbtCompound destTag = (NbtCompound) e;
-            NbtList posTag = destTag.getList("pos",NbtElement.DOUBLE_TYPE);
-            Vec3d pos = new Vec3d(posTag.getDouble(0),posTag.getDouble(1),posTag.getDouble(2));
-            NbtList rotTag = destTag.getList("rot",NbtElement.FLOAT_TYPE);
-            Vec2f rot = new Vec2f(rotTag.getFloat(0),rotTag.getFloat(1));
-            destinations.add(new Destination(destTag.getString("name"),pos,rot,destTag.getString("world")));
+            NbtList posTag = destTag.getList("pos").orElseThrow();
+            Vec3d pos = new Vec3d(posTag.getDouble(0).orElseThrow(), posTag.getDouble(1).orElseThrow(), posTag.getDouble(2).orElseThrow());
+            NbtList rotTag = destTag.getList("rot").orElseThrow();
+            Vec2f rot = new Vec2f(rotTag.getFloat(0).orElseThrow(), rotTag.getFloat(1).orElseThrow());
+            destinations.add(new Destination(destTag.getString("name").orElseThrow(), pos, rot, destTag.getString("world").orElseThrow()));
          }
       }catch(Exception e){
          e.printStackTrace();
