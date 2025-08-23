@@ -3,6 +3,8 @@ package net.borisshoes.endernexus.cca;
 import net.borisshoes.endernexus.Destination;
 import net.minecraft.nbt.*;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 
@@ -31,12 +33,10 @@ public class DestinationComponent implements IDestinationComponent{
    }
    
    @Override
-   public void readFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup){
+   public void readData(ReadView view){
       try{
          destinations.clear();
-         NbtList destsTag = tag.getList("Destinations").orElse(new NbtList());
-         for (NbtElement e : destsTag) {
-            NbtCompound destTag = (NbtCompound) e;
+         for(NbtCompound destTag : view.getTypedListView("Destinations", NbtCompound.CODEC)){
             NbtList posTag = destTag.getList("pos").orElse(new NbtList());
             Vec3d pos = new Vec3d(posTag.getDouble(0,0),posTag.getDouble(1,0),posTag.getDouble(2,0));
             NbtList rotTag = destTag.getList("rot").orElse(new NbtList());
@@ -49,9 +49,9 @@ public class DestinationComponent implements IDestinationComponent{
    }
    
    @Override
-   public void writeToNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup){
+   public void writeData(WriteView view){
       try{
-         NbtList destsTag = new NbtList();
+         WriteView.ListAppender<NbtCompound> listAppender = view.getListAppender("Destinations", NbtCompound.CODEC);
          for(Destination dest : destinations){
             NbtCompound blockTag = new NbtCompound();
             NbtList pos = new NbtList();
@@ -65,9 +65,8 @@ public class DestinationComponent implements IDestinationComponent{
             blockTag.put("rot",rot);
             blockTag.putString("name",dest.getName());
             blockTag.putString("world",dest.getWorldKey());
-            destsTag.add(blockTag);
+            listAppender.add(blockTag);
          }
-         tag.put("Destinations",destsTag);
       }catch(Exception e){
          e.printStackTrace();
       }

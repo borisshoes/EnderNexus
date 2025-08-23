@@ -36,7 +36,7 @@ import static net.borisshoes.endernexus.EnderNexus.SERVER_TIMER_CALLBACKS_QUEUE;
 
 public class TeleportUtils {
    public static void genericTeleport(boolean bossBar, boolean particles, boolean sound, int standStillTime, ServerPlayerEntity who, Runnable onCounterDone) {
-      MinecraftServer server = who.server;
+      MinecraftServer server = who.getServer();
       final int[] counter = {standStillTime};
       final Vec3d[] lastPos = {who.getPos()};
       CommandBossBar standStillBar = null;
@@ -87,7 +87,7 @@ public class TeleportUtils {
             }
             
             if(particles){
-               who.getServerWorld().spawnParticles(ParticleTypes.PORTAL,who.getPos().x,who.getPos().y+.5,who.getPos().z,20,.2,.5,.2,1);
+               who.getWorld().spawnParticles(ParticleTypes.PORTAL,who.getPos().x,who.getPos().y+.5,who.getPos().z,20,.2,.5,.2,1);
             }
             
             if(sound){

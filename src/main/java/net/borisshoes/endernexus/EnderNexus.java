@@ -388,7 +388,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("spawn-warmup"),
                tTo, () -> {
-                  tTo.teleportTo(new TeleportTarget(finalTFrom.getServerWorld(), finalTFrom.getPos(), Vec3d.ZERO, tTo.getYaw(),tTo.getPitch(), TeleportTarget.NO_OP));
+                  tTo.teleportTo(new TeleportTarget(finalTFrom.getWorld(), finalTFrom.getPos(), Vec3d.ZERO, tTo.getYaw(),tTo.getPitch(), TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
                });
       }else{
@@ -398,7 +398,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("spawn-warmup"),
                tFrom, () -> {
-                  finalTFrom.teleportTo(new TeleportTarget(tTo.getServerWorld(), tTo.getPos(), Vec3d.ZERO, finalTFrom.getYaw(),finalTFrom.getPitch(), TeleportTarget.NO_OP));
+                  finalTFrom.teleportTo(new TeleportTarget(tTo.getWorld(), tTo.getPos(), Vec3d.ZERO, finalTFrom.getYaw(),finalTFrom.getPitch(), TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
                });
       }
@@ -546,7 +546,7 @@ public class EnderNexus implements ModInitializer {
          }
          if(checkCooldown(TPType.RTP,player)) return -1;
          if(activeChannels(player)) return -1;
-         ServerWorld world = player.getServerWorld();
+         ServerWorld world = player.getWorld();
          
          int range = (int) config.getValue("rtp-range");
          int tries = 0;
@@ -996,8 +996,8 @@ public class EnderNexus implements ModInitializer {
       }
       
       public void refreshPlayers() {
-         this.tFrom = tFrom.server.getPlayerManager().getPlayer(tFrom.getUuid());
-         this.tTo = tTo.server.getPlayerManager().getPlayer(tTo.getUuid());
+         this.tFrom = tFrom.getServer().getPlayerManager().getPlayer(tFrom.getUuid());
+         this.tTo = tTo.getServer().getPlayerManager().getPlayer(tTo.getUuid());
          assert tFrom != null && tTo != null;
       }
    }
