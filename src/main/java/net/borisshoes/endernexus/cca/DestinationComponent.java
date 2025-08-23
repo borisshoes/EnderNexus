@@ -34,14 +34,14 @@ public class DestinationComponent implements IDestinationComponent{
    public void readFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup){
       try{
          destinations.clear();
-         NbtList destsTag = tag.getList("Destinations", NbtElement.COMPOUND_TYPE);
+         NbtList destsTag = tag.getList("Destinations").orElse(new NbtList());
          for (NbtElement e : destsTag) {
             NbtCompound destTag = (NbtCompound) e;
-            NbtList posTag = destTag.getList("pos",NbtElement.DOUBLE_TYPE);
-            Vec3d pos = new Vec3d(posTag.getDouble(0),posTag.getDouble(1),posTag.getDouble(2));
-            NbtList rotTag = destTag.getList("rot",NbtElement.FLOAT_TYPE);
-            Vec2f rot = new Vec2f(rotTag.getFloat(0),rotTag.getFloat(1));
-            destinations.add(new Destination(destTag.getString("name"),pos,rot,destTag.getString("world")));
+            NbtList posTag = destTag.getList("pos").orElse(new NbtList());
+            Vec3d pos = new Vec3d(posTag.getDouble(0,0),posTag.getDouble(1,0),posTag.getDouble(2,0));
+            NbtList rotTag = destTag.getList("rot").orElse(new NbtList());
+            Vec2f rot = new Vec2f(rotTag.getFloat(0,0),rotTag.getFloat(1,0));
+            destinations.add(new Destination(destTag.getString("name",""),pos,rot,destTag.getString("world","")));
          }
       }catch(Exception e){
          e.printStackTrace();

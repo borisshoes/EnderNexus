@@ -318,8 +318,8 @@ public class EnderNexus implements ModInitializer {
       tFrom.sendMessage(senderText
                   .append(Text.literal("\nTo cancel type ").formatted(Formatting.LIGHT_PURPLE))
                   .append(Text.literal("/tpacancel [<player>]").styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpacancel " + tTo.getName().getString()))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tpacancel " + tTo.getName().getString())))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tpacancel " + tTo.getName().getString()))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpacancel " + tTo.getName().getString())))
                               .withColor(Formatting.GREEN)))
                   .append(Text.literal("\nThis request will timeout in " + ((int)config.getValue("tpa-timeout"))/20 + " seconds.").formatted(Formatting.LIGHT_PURPLE)),
             false);
@@ -329,13 +329,13 @@ public class EnderNexus implements ModInitializer {
                   .append(Text.literal(tpahere ? " has requested that you TPA to them!" : " has requested to TPA to you!").formatted(Formatting.LIGHT_PURPLE))
                   .append(Text.literal("\nTo accept type ").formatted(Formatting.LIGHT_PURPLE))
                   .append(Text.literal("/tpaaccept [<player>]").styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpaaccept " + tFrom.getName().getString()))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tpaaccept " + tFrom.getName().getString())))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tpaaccept " + tFrom.getName().getString()))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpaaccept " + tFrom.getName().getString())))
                               .withColor(Formatting.GREEN)))
                   .append(Text.literal("\nTo deny type ").formatted(Formatting.LIGHT_PURPLE))
                   .append(Text.literal("/tpadeny [<player>]").styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpadeny " + tFrom.getName().getString()))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tpadeny " + tFrom.getName().getString())))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tpadeny " + tFrom.getName().getString()))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpadeny " + tFrom.getName().getString())))
                               .withColor(Formatting.GREEN)))
                   .append(Text.literal("\nThis request will timeout in " + ((int)config.getValue("tpa-timeout"))/20 + " seconds.").formatted(Formatting.LIGHT_PURPLE)),
             false);
@@ -356,8 +356,8 @@ public class EnderNexus implements ModInitializer {
             MutableText text = Text.literal("You currently have multiple active TPA requests! Please specify whose request to accept.\n").formatted(Formatting.LIGHT_PURPLE);
             Arrays.stream(candidates).map(TPARequest -> TPARequest.tFrom.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpaaccept " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tpaaccept " + name)))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tpaaccept " + name))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpaaccept " + name)))
                               .withColor(Formatting.GREEN)).append(" ")));
             tTo.sendMessage(text, false);
             return 1;
@@ -426,8 +426,8 @@ public class EnderNexus implements ModInitializer {
             MutableText text = Text.literal("You currently have multiple active TPA requests! Please specify whose request to deny.\n").formatted(Formatting.GREEN);
             Arrays.stream(candidates).map(TPARequest -> TPARequest.tFrom.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpadeny " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tpadeny " + name)))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tpadeny " + name))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpadeny " + name)))
                               .withColor(Formatting.GREEN))).append(" "));
             tTo.sendMessage(text, false);
             return 1;
@@ -471,8 +471,8 @@ public class EnderNexus implements ModInitializer {
             MutableText text = Text.literal("You currently have multiple active TPA requests! Please specify which request to cancel.\n").formatted(Formatting.GREEN);
             Arrays.stream(candidates).map(TPARequest -> TPARequest.tTo.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpacancel " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tpacancel " + name)))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tpacancel " + name))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpacancel " + name)))
                               .withColor(Formatting.GREEN))).append(" "));
             tFrom.sendMessage(text, false);
             return 1;
