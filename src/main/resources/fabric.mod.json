@@ -12,7 +12,7 @@
   },
   "license": "OSL-3.0",
   "icon": "assets/endernexus/icon.png",
-  "environment": "*",
+  "environment": "server",
   "entrypoints": {
     "main": [
       "net.borisshoes.endernexus.EnderNexus"

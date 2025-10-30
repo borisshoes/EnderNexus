@@ -388,7 +388,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("spawn-warmup"),
                tTo, () -> {
-                  tTo.teleportTo(new TeleportTarget(finalTFrom.getEntityWorld(), finalTFrom.getEntityPos(), Vec3d.ZERO, tTo.getYaw(),tTo.getPitch(), TeleportTarget.NO_OP));
+                  tTo.teleportTo(new TeleportTarget(finalTFrom.getWorld(), finalTFrom.getPos(), Vec3d.ZERO, tTo.getYaw(),tTo.getPitch(), TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
                });
       }else{
@@ -398,7 +398,7 @@ public class EnderNexus implements ModInitializer {
                (boolean) config.getValue("sound"),
                (int) config.getValue("spawn-warmup"),
                tFrom, () -> {
-                  finalTFrom.teleportTo(new TeleportTarget(tTo.getEntityWorld(), tTo.getEntityPos(), Vec3d.ZERO, finalTFrom.getYaw(),finalTFrom.getPitch(), TeleportTarget.NO_OP));
+                  finalTFrom.teleportTo(new TeleportTarget(tTo.getWorld(), tTo.getPos(), Vec3d.ZERO, finalTFrom.getYaw(),finalTFrom.getPitch(), TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(finalTFrom,TPType.TPA,System.currentTimeMillis()));
                });
       }
@@ -516,14 +516,14 @@ public class EnderNexus implements ModInitializer {
          if(checkCooldown(TPType.SPAWN,player)) return -1;
          if(activeChannels(player)) return -1;
          
-         ServerWorld world = player.getEntityWorld().getServer().getSpawnWorld();
+         ServerWorld world = player.getServer().getWorld(ServerWorld.OVERWORLD);
          TeleportUtils.genericTeleport(
                (boolean) config.getValue("bossbar"),
                (boolean) config.getValue("particles"),
                (boolean) config.getValue("sound"),
                (int) config.getValue("spawn-warmup"),
                player, () -> {
-                  player.teleportTo(new TeleportTarget(world, world.getSpawnPoint().getPos().toBottomCenterPos(), Vec3d.ZERO, world.getSpawnPoint().yaw(),world.getSpawnPoint().pitch(), TeleportTarget.NO_OP));
+                  player.teleportTo(new TeleportTarget(world, world.getSpawnPos().toBottomCenterPos(), Vec3d.ZERO, world.getSpawnAngle(),0.0f, TeleportTarget.NO_OP));
                   recentTeleports.add(new Teleport(player,TPType.SPAWN,System.currentTimeMillis()));
                });
          return 1;
@@ -546,7 +546,7 @@ public class EnderNexus implements ModInitializer {
          }
          if(checkCooldown(TPType.RTP,player)) return -1;
          if(activeChannels(player)) return -1;
-         ServerWorld world = player.getEntityWorld();
+         ServerWorld world = player.getWorld();
          
          int range = (int) config.getValue("rtp-range");
          int tries = 0;
@@ -554,8 +554,8 @@ public class EnderNexus implements ModInitializer {
          while(tries < 100){
             double angle = 2 * Math.PI * Math.random();
             double r = range * Math.sqrt(Math.random());
-            int x = (int) (r * Math.cos(angle)) + world.getSpawnPoint().getPos().getX();
-            int z = (int) (r * Math.sin(angle)) + world.getSpawnPoint().getPos().getZ();
+            int x = (int) (r * Math.cos(angle)) + world.getSpawnPos().getX();
+            int z = (int) (r * Math.sin(angle)) + world.getSpawnPos().getZ();
             
             int placeTries = 0; int spread = 4;
             ArrayList<BlockPos> locations;
@@ -616,7 +616,7 @@ public class EnderNexus implements ModInitializer {
             return -1;
          }
          
-         homes.add(new Destination(name,player.getEntityPos(),player.getRotationClient(),player.getEntityWorld().getRegistryKey().getValue().toString()));
+         homes.add(new Destination(name,player.getPos(),player.getRotationClient(),player.getWorld().getRegistryKey().getValue().toString()));
          player.sendMessage(Text.literal("Home '"+name+"' added successfully!").formatted(Formatting.GREEN),false);
          
          return 1;
@@ -725,7 +725,7 @@ public class EnderNexus implements ModInitializer {
             return -1;
          }
          
-         warps.add(new Destination(name,player.getEntityPos(),player.getRotationClient(),player.getEntityWorld().getRegistryKey().getValue().toString()));
+         warps.add(new Destination(name,player.getPos(),player.getRotationClient(),player.getWorld().getRegistryKey().getValue().toString()));
          player.sendMessage(Text.literal("Warp '"+name+"' added successfully!").formatted(Formatting.GREEN),false);
          
          return 1;
@@ -849,7 +849,7 @@ public class EnderNexus implements ModInitializer {
          SERVER_TIMER_CALLBACKS.entrySet().removeIf(t -> (t.getValue() instanceof TeleportTimer tp) && tp.player.getUuid().equals(player.getUuid()));
          SERVER_TIMER_CALLBACKS_QUEUE.entrySet().removeIf(t -> (t.getValue() instanceof TeleportTimer tp) && tp.player.getUuid().equals(player.getUuid()));
    
-         BossBarManager bbm = player.getEntityWorld().getServer().getBossBarManager();
+         BossBarManager bbm = player.getServer().getBossBarManager();
          bbm.getAll().stream().filter(b -> b.getId().toString().contains("standstill-"+player.getUuid())).toList().forEach(b -> {
             b.clearPlayers();
             bbm.remove(b);
@@ -996,8 +996,8 @@ public class EnderNexus implements ModInitializer {
       }
       
       public void refreshPlayers() {
-         this.tFrom = tFrom.getEntityWorld().getServer().getPlayerManager().getPlayer(tFrom.getUuid());
-         this.tTo = tTo.getEntityWorld().getServer().getPlayerManager().getPlayer(tTo.getUuid());
+         this.tFrom = tFrom.getServer().getPlayerManager().getPlayer(tFrom.getUuid());
+         this.tTo = tTo.getServer().getPlayerManager().getPlayer(tTo.getUuid());
          assert tFrom != null && tTo != null;
       }
    }

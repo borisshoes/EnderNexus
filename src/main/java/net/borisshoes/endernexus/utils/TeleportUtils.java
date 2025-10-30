@@ -36,9 +36,9 @@ import static net.borisshoes.endernexus.EnderNexus.SERVER_TIMER_CALLBACKS_QUEUE;
 
 public class TeleportUtils {
    public static void genericTeleport(boolean bossBar, boolean particles, boolean sound, int standStillTime, ServerPlayerEntity who, Runnable onCounterDone) {
-      MinecraftServer server = who.getEntityWorld().getServer();
+      MinecraftServer server = who.getServer();
       final int[] counter = {standStillTime};
-      final Vec3d[] lastPos = {who.getEntityPos()};
+      final Vec3d[] lastPos = {who.getPos()};
       CommandBossBar standStillBar = null;
       if (bossBar) {
          standStillBar = server.getBossBarManager().add(Identifier.of("standstill-" + who.getUuidAsString()+"-"+ UUID.randomUUID()), Text.literal("Teleport Charging: "+((counter[0]/20)+1)+" Seconds Remaining").formatted(Formatting.LIGHT_PURPLE));
@@ -75,7 +75,7 @@ public class TeleportUtils {
                return;
             }
       
-            Vec3d curPos = whoFinal[0].getEntityPos();
+            Vec3d curPos = whoFinal[0].getPos();
             if (whoFinal[0].isRemoved()) {
                whoFinal[0] = server.getPlayerManager().getPlayer(whoFinal[0].getUuid());
                assert whoFinal[0] != null;
@@ -87,7 +87,7 @@ public class TeleportUtils {
             }
             
             if(particles){
-               who.getEntityWorld().spawnParticles(ParticleTypes.PORTAL,who.getEntityPos().x,who.getEntityPos().y+.5,who.getEntityPos().z,20,.2,.5,.2,1);
+               who.getWorld().spawnParticles(ParticleTypes.PORTAL,who.getPos().x,who.getPos().y+.5,who.getPos().z,20,.2,.5,.2,1);
             }
             
             if(sound){
