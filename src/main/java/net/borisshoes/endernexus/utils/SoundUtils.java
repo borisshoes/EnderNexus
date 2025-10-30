@@ -11,11 +11,11 @@ import net.minecraft.world.World;
 
 public class SoundUtils {
    public static void playSongToPlayer(ServerPlayerEntity player, RegistryEntry.Reference<SoundEvent> event, float vol, float pitch){
-      player.networkHandler.sendPacket(new PlaySoundS2CPacket(event, SoundCategory.PLAYERS, player.getPos().x, player.getPos().y, player.getPos().z, vol, pitch, 0));
+      player.networkHandler.sendPacket(new PlaySoundS2CPacket(event, SoundCategory.PLAYERS, player.getEntityPos().x, player.getEntityPos().y, player.getEntityPos().z, vol, pitch, 0));
    }
    
    public static void playSongToPlayer(ServerPlayerEntity player, SoundEvent event, float vol, float pitch){
-      player.networkHandler.sendPacket(new PlaySoundS2CPacket(Registries.SOUND_EVENT.getEntry(event), SoundCategory.PLAYERS, player.getPos().x, player.getPos().y, player.getPos().z, vol, pitch, 0));
+      player.networkHandler.sendPacket(new PlaySoundS2CPacket(Registries.SOUND_EVENT.getEntry(event), SoundCategory.PLAYERS, player.getEntityPos().x, player.getEntityPos().y, player.getEntityPos().z, vol, pitch, 0));
    }
    
    public static void playSound(World world, BlockPos pos, SoundEvent event, SoundCategory category, float vol, float pitch){
