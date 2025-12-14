@@ -1,14 +1,24 @@
 package net.borisshoes.endernexus;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
 import java.util.Objects;
 
 public class Destination {
+   
+   public static final Codec<Destination> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+         Codec.STRING.fieldOf("name").forGetter(Destination::getName),
+         Vec3d.CODEC.fieldOf("pos").forGetter(Destination::getPos),
+         Vec2f.CODEC.optionalFieldOf("rot", new Vec2f(0, 0)).forGetter(Destination::getRotation),
+         Codec.STRING.fieldOf("world").forGetter(Destination::getWorldKey)
+   ).apply(instance, Destination::new));
    
    private final String name;
    private final Vec3d pos;
@@ -45,7 +55,19 @@ public class Destination {
             return w;
          }
       }
-      EnderNexus.LOGGER.error("Unknown world teleport: "+worldKey);
+      EnderNexus.LOGGER.error("Unknown world teleport: {}",worldKey);
       return null;
+   }
+   
+   @Override
+   public boolean equals(Object o){
+      if(this == o) return true;
+      if(!(o instanceof Destination that)) return false;
+      return Objects.equals(name.toLowerCase(Locale.ROOT), that.name.toLowerCase(Locale.ROOT)) && Objects.equals(pos, that.pos) && Objects.equals(rot, that.rot) && Objects.equals(worldKey, that.worldKey);
+   }
+   
+   @Override
+   public int hashCode(){
+      return Objects.hash(name.toLowerCase(Locale.ROOT), pos, rot, worldKey);
    }
 }
