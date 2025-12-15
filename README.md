@@ -37,30 +37,30 @@
 Configuration can be done through the properties file generated when loaded on a server or through commands.
 * ```/setwarp <name>``` Sets a warp at the current location with the specified name
 * ```/delwarp <name>``` Deletes the specified warp
-* ```/endernexus config``` Gets the currently configured settings
-* ```/endernexus config bossbar <true/false>``` Enables/Disables the teleport warmup bar
-* ```/endernexus config particles <true/false>``` Enables/Disables teleportation particles
-* ```/endernexus config sound <true/false>``` Enables/Disables the teleport sounds
-* ```/endernexus config homes <true/false>``` Enables/Disables the Homes feature
-* ```/endernexus config homesWarmup <0+>``` Sets the number of seconds it takes to teleport to a home
-* ```/endernexus config homesCooldown <0+>``` Sets the number of seconds before a player can teleport to a home again
-* ```/endernexus config homesMax <1+>``` Sets the number of homes a player is allowed to set
-* ```/endernexus config warps <true/false>``` Enables/Disables the Warps feature
-* ```/endernexus config warpsWarmup <0+>``` Sets the number of seconds it takes to teleport to a warp
-* ```/endernexus config warpsCooldown <0+>``` Sets the number of seconds before a player can teleport to a warp again
-* ```/endernexus config spawn <true/false>``` Enables/Disables the Spawn feature
-* ```/endernexus config spawnWarmup <0+>``` Sets the number of seconds it takes to teleport to spawn
-* ```/endernexus config spawnCooldown <0+>``` Sets the number of seconds before a player can teleport to spawn again
-* ```/endernexus config tpas <true/false>``` Enables/Disables the TPAs feature
-* ```/endernexus config tpaheres <true/false>``` Enables/Disables the TPA Here feature
-* ```/endernexus config tpaWarmup <0+>``` Sets the number of seconds it takes to teleport to another player
-* ```/endernexus config tpaCooldown <0+>``` Sets the number of seconds before a player can teleport to another player again
-* ```/endernexus config tpaTimeout <0+>``` Sets the number of seconds before a tpa request expires
-* ```/endernexus config randomtps <true/false>``` Enables/Disables the Warps feature
-* ```/endernexus config rtpWarmup <0+>``` Sets the number of seconds it takes to teleport to a random spot
-* ```/endernexus config rtpCooldown <0+>``` Sets the number of seconds before a player can teleport to a random spot again
-* ```/endernexus config rtpMinRange <1+>``` Sets the minimum circular radius, in blocks, that a random tp can put the player, centered at the world spawn
-* ```/endernexus config rtpMaxRange <1+>``` Sets the maximum circular radius, in blocks, that a random tp can put the player, centered at the world spawn
+* ```/endernexus``` Gets the currently configured settings
+* ```/endernexus bossbar <true/false>``` Enables/Disables the teleport warmup bar
+* ```/endernexus particles <true/false>``` Enables/Disables teleportation particles
+* ```/endernexus sound <true/false>``` Enables/Disables the teleport sounds
+* ```/endernexus homes <true/false>``` Enables/Disables the Homes feature
+* ```/endernexus homesWarmup <0+>``` Sets the number of seconds it takes to teleport to a home
+* ```/endernexus homesCooldown <0+>``` Sets the number of seconds before a player can teleport to a home again
+* ```/endernexus homesMax <1+>``` Sets the number of homes a player is allowed to set
+* ```/endernexus warps <true/false>``` Enables/Disables the Warps feature
+* ```/endernexus warpsWarmup <0+>``` Sets the number of seconds it takes to teleport to a warp
+* ```/endernexus warpsCooldown <0+>``` Sets the number of seconds before a player can teleport to a warp again
+* ```/endernexus spawn <true/false>``` Enables/Disables the Spawn feature
+* ```/endernexus spawnWarmup <0+>``` Sets the number of seconds it takes to teleport to spawn
+* ```/endernexus spawnCooldown <0+>``` Sets the number of seconds before a player can teleport to spawn again
+* ```/endernexus tpas <true/false>``` Enables/Disables the TPAs feature
+* ```/endernexus tpaheres <true/false>``` Enables/Disables the TPA Here feature
+* ```/endernexus tpaWarmup <0+>``` Sets the number of seconds it takes to teleport to another player
+* ```/endernexus tpaCooldown <0+>``` Sets the number of seconds before a player can teleport to another player again
+* ```/endernexus tpaTimeout <0+>``` Sets the number of seconds before a tpa request expires
+* ```/endernexus randomtps <true/false>``` Enables/Disables the Warps feature
+* ```/endernexus rtpWarmup <0+>``` Sets the number of seconds it takes to teleport to a random spot
+* ```/endernexus rtpCooldown <0+>``` Sets the number of seconds before a player can teleport to a random spot again
+* ```/endernexus rtpMinRange <1+>``` Sets the minimum circular radius, in blocks, that a random tp can put the player, centered at the world spawn
+* ```/endernexus rtpMaxRange <1+>``` Sets the maximum circular radius, in blocks, that a random tp can put the player, centered at the world spawn
 * ```/endernexus cleanse``` Clears the cache (useful if someone gets stuck with a teleport bar that doesn't clear)
 
 ### LICENSE NOTICE

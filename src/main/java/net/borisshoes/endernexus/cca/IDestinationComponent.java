@@ -1,10 +1,7 @@
 package net.borisshoes.endernexus.cca;
 
-import org.ladysnake.cca.api.v3.component.ComponentV3;
 import net.borisshoes.endernexus.Destination;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import org.ladysnake.cca.api.v3.component.ComponentV3;
 
 import java.util.List;
 

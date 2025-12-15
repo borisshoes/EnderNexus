@@ -2,15 +2,14 @@ package net.borisshoes.endernexus.storage;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.borisshoes.borislib.callbacks.LoginCallback;
 import net.borisshoes.borislib.datastorage.DataKey;
 import net.borisshoes.borislib.datastorage.DataRegistry;
-import net.borisshoes.borislib.testmod.GlobalTimestamp;
-import net.borisshoes.borislib.utils.CodecUtils;
 import net.borisshoes.endernexus.Destination;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 import static net.borisshoes.endernexus.EnderNexus.MOD_ID;
 
@@ -23,7 +22,7 @@ public class WarpsStorage {
       return storage;
    }));
    
-   public static final DataKey<WarpsStorage> KEY = DataRegistry.register(DataKey.ofGlobal(Identifier.of(MOD_ID, "timestamp"),CODEC,WarpsStorage::new));
+   public static final DataKey<WarpsStorage> KEY = DataRegistry.register(DataKey.ofGlobal(Identifier.fromNamespaceAndPath(MOD_ID, "timestamp"),CODEC,WarpsStorage::new));
    
    public final Set<Destination> warps = new HashSet<>();
    

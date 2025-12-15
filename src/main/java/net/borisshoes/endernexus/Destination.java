@@ -3,9 +3,9 @@ package net.borisshoes.endernexus;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec2;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
@@ -15,29 +15,29 @@ public class Destination {
    
    public static final Codec<Destination> CODEC = RecordCodecBuilder.create(instance -> instance.group(
          Codec.STRING.fieldOf("name").forGetter(Destination::getName),
-         Vec3d.CODEC.fieldOf("pos").forGetter(Destination::getPos),
-         Vec2f.CODEC.optionalFieldOf("rot", new Vec2f(0, 0)).forGetter(Destination::getRotation),
+         Vec3.CODEC.fieldOf("pos").forGetter(Destination::getPos),
+         Vec2.CODEC.optionalFieldOf("rot", new Vec2(0, 0)).forGetter(Destination::getRotation),
          Codec.STRING.fieldOf("world").forGetter(Destination::getWorldKey)
    ).apply(instance, Destination::new));
    
    private final String name;
-   private final Vec3d pos;
-   private final Vec2f rot;
+   private final Vec3 pos;
+   private final Vec2 rot;
    private final String worldKey;
    
-   public Destination(String name, Vec3d pos, @Nullable Vec2f rot, String world){
+   public Destination(String name, Vec3 pos, @Nullable Vec2 rot, String world){
       this.name = name;
       this.pos = pos;
       this.worldKey = world;
    
-      this.rot = Objects.requireNonNullElseGet(rot, () -> new Vec2f(0, 0));
+      this.rot = Objects.requireNonNullElseGet(rot, () -> new Vec2(0, 0));
    }
    
-   public Vec3d getPos(){
+   public Vec3 getPos(){
       return pos;
    }
    
-   public Vec2f getRotation(){
+   public Vec2 getRotation(){
       return rot;
    }
    
@@ -49,9 +49,9 @@ public class Destination {
       return name;
    }
    
-   public ServerWorld getWorld(MinecraftServer server){
-      for (ServerWorld w : server.getWorlds()){
-         if(w.getRegistryKey().getValue().toString().equals(worldKey)){
+   public ServerLevel getWorld(MinecraftServer server){
+      for (ServerLevel w : server.getAllLevels()){
+         if(w.dimension().identifier().toString().equals(worldKey)){
             return w;
          }
       }

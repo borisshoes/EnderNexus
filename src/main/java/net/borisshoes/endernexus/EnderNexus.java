@@ -6,7 +6,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.borisshoes.borislib.BorisLib;
-import net.borisshoes.borislib.callbacks.PlayerConnectionCallback;
 import net.borisshoes.borislib.config.ConfigManager;
 import net.borisshoes.borislib.datastorage.DataAccess;
 import net.borisshoes.borislib.utils.TextUtils;
@@ -16,27 +15,29 @@ import net.borisshoes.endernexus.storage.WarpsStorage;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.entity.ai.pathing.LandPathNodeMaker;
-import net.minecraft.entity.boss.BossBarManager;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.*;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.BlockView;
-import net.minecraft.world.TeleportTarget;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.bossevents.CustomBossEvents;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
+import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.phys.Vec3;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -49,9 +50,9 @@ import java.util.stream.Stream;
 import static com.mojang.brigadier.arguments.StringArgumentType.word;
 import static net.borisshoes.borislib.BorisLib.SERVER_TIMER_CALLBACKS;
 import static net.borisshoes.endernexus.EnderNexusRegistry.CONFIG_SETTINGS;
-import static net.minecraft.command.argument.EntityArgumentType.getPlayer;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
+import static net.minecraft.commands.arguments.EntityArgument.getPlayer;
 
 public class EnderNexus implements ModInitializer {
    
@@ -76,7 +77,7 @@ public class EnderNexus implements ModInitializer {
       ServerPlayConnectionEvents.JOIN.register(DataFixer::onPlayerJoin);
    
       CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
-         dispatcher.register(EnderNexus.CONFIG.generateCommand("endernexus","config"));
+         dispatcher.register(EnderNexus.CONFIG.generateCommand("endernexus",""));
          
          dispatcher.register(literal("spawntp")
                .executes(this::spawnTp));
@@ -111,11 +112,11 @@ public class EnderNexus implements ModInitializer {
                      .executes(ctx -> homeTp(ctx, StringArgumentType.getString(ctx,"name")))));
    
    
-         dispatcher.register(literal("setwarp").requires(source -> source.hasPermissionLevel(2))
+         dispatcher.register(literal("setwarp").requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
                .then(argument("name",word())
                      .executes(ctx -> setWarp(ctx, StringArgumentType.getString(ctx,"name")))));
    
-         dispatcher.register(literal("delwarp").requires(source -> source.hasPermissionLevel(2))
+         dispatcher.register(literal("delwarp").requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
                .then(argument("name",word()).suggests(this::getWarpSuggestions)
                      .executes(ctx -> delWarp(ctx, StringArgumentType.getString(ctx,"name")))));
    
@@ -125,30 +126,30 @@ public class EnderNexus implements ModInitializer {
    
    
          dispatcher.register(literal("tpa")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTpaInitSuggestions)
+               .then(argument("target", EntityArgument.player()).suggests(this::getTpaInitSuggestions)
                      .executes(ctx -> tpaInit(ctx, getPlayer(ctx, "target"), false))));
          
          dispatcher.register(literal("tpahere")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTpaInitSuggestions)
+               .then(argument("target", EntityArgument.player()).suggests(this::getTpaInitSuggestions)
                      .executes(ctx -> tpaInit(ctx, getPlayer(ctx, "target"), true))));
    
          dispatcher.register(literal("tpaaccept")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTpaTargetSuggestions)
+               .then(argument("target", EntityArgument.player()).suggests(this::getTpaTargetSuggestions)
                      .executes(ctx -> tpaAccept(ctx, getPlayer(ctx, "target"))))
                .executes(ctx -> tpaAccept(ctx, null)));
    
          dispatcher.register(literal("tpadeny")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTpaTargetSuggestions)
+               .then(argument("target", EntityArgument.player()).suggests(this::getTpaTargetSuggestions)
                      .executes(ctx -> tpaDeny(ctx, getPlayer(ctx, "target"))))
                .executes(ctx -> tpaDeny(ctx, null)));
    
          dispatcher.register(literal("tpacancel")
-               .then(argument("target", EntityArgumentType.player()).suggests(this::getTpaSenderSuggestions)
+               .then(argument("target", EntityArgument.player()).suggests(this::getTpaSenderSuggestions)
                      .executes(ctx -> tpaCancel(ctx, getPlayer(ctx, "target"))))
                .executes(ctx -> tpaCancel(ctx, null)));
          
          dispatcher.register(literal("endernexus")
-               .then(literal("cleanse").requires(source -> source.hasPermissionLevel(2)).executes(this::cleanse)));
+               .then(literal("cleanse").requires(Commands.hasPermission(Commands.LEVEL_ADMINS)).executes(this::cleanse)));
       });
    }
    
@@ -160,16 +161,16 @@ public class EnderNexus implements ModInitializer {
       return SERVER_TIMER_CALLBACKS.stream().filter(timer -> timer instanceof TeleportTimer).map(timer -> (TeleportTimer)timer).toList();
    }
    
-   private int cleanse(CommandContext<ServerCommandSource> ctx){
+   private int cleanse(CommandContext<CommandSourceStack> ctx){
       SERVER_TIMER_CALLBACKS.removeIf(timer -> timer instanceof TeleportTimer || timer instanceof RequestTimer);
       RECENT_TELEPORTS.clear();
    
-      BossBarManager bbm = ctx.getSource().getServer().getBossBarManager();
-      bbm.getAll().stream().filter(b -> b.getId().toString().contains("standstill-")).toList().forEach(b -> {
-         b.clearPlayers();
+      CustomBossEvents bbm = ctx.getSource().getServer().getCustomBossEvents();
+      bbm.getEvents().stream().filter(b -> b.getTextId().toString().contains("standstill-")).toList().forEach(b -> {
+         b.removeAllPlayers();
          bbm.remove(b);
       });
-      ctx.getSource().sendFeedback(() -> Text.translatable("text.endernexus.cleansed"),true);
+      ctx.getSource().sendSuccess(() -> Component.translatable("text.endernexus.cleansed"),true);
       return 1;
    }
    
@@ -180,22 +181,22 @@ public class EnderNexus implements ModInitializer {
       return builder.buildFuture();
    }
    
-   private CompletableFuture<Suggestions> getHomeSuggestions(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
-      if(ctx.getSource().isExecutedByPlayer()){
-         ServerPlayerEntity player = ctx.getSource().getPlayer();
-         List<String> homeOptions = DataAccess.getPlayer(player.getUuid(), HomesStorage.KEY).getHomes().stream().map(Destination::getName).toList();
+   private CompletableFuture<Suggestions> getHomeSuggestions(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
+      if(ctx.getSource().isPlayer()){
+         ServerPlayer player = ctx.getSource().getPlayer();
+         List<String> homeOptions = DataAccess.getPlayer(player.getUUID(), HomesStorage.KEY).getHomes().stream().map(Destination::getName).toList();
          return filterSuggestionsByInput(builder, homeOptions);
       }
       return filterSuggestionsByInput(builder, new ArrayList<>());
    }
    
-   private CompletableFuture<Suggestions> getWarpSuggestions(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
+   private CompletableFuture<Suggestions> getWarpSuggestions(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
       List<String> warpOptions = DataAccess.getGlobal(WarpsStorage.KEY).getWarps().stream().map(Destination::getName).toList();
       return filterSuggestionsByInput(builder, warpOptions);
    }
    
-   private CompletableFuture<Suggestions> getTpaInitSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
-      ServerCommandSource scs = context.getSource();
+   private CompletableFuture<Suggestions> getTpaInitSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+      CommandSourceStack scs = context.getSource();
       List<RequestTimer> activeRequests = getRequests();
       
       List<String> activeTargets = Stream.concat(
@@ -203,39 +204,39 @@ public class EnderNexus implements ModInitializer {
             activeRequests.stream().map(requestTimer -> requestTimer.tFrom().getName().getString())
       ).toList();
       List<String> others = Arrays.stream(scs.getServer().getPlayerNames())
-            .filter(s -> !s.equals(scs.getName()) && !activeTargets.contains(s))
+            .filter(s -> !s.equals(scs.getTextName()) && !activeTargets.contains(s))
             .collect(Collectors.toList());
       return filterSuggestionsByInput(builder, others);
    }
    
-   private CompletableFuture<Suggestions> getTpaTargetSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
+   private CompletableFuture<Suggestions> getTpaTargetSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
       List<String> activeTargets = getRequests().stream().map(tpaRequest -> tpaRequest.tFrom().getName().getString()).collect(Collectors.toList());
       return filterSuggestionsByInput(builder, activeTargets);
    }
    
-   private CompletableFuture<Suggestions> getTpaSenderSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
+   private CompletableFuture<Suggestions> getTpaSenderSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
       List<String> activeTargets = getRequests().stream().map(TPARequest -> TPARequest.tTo().getName().getString()).collect(Collectors.toList());
       return filterSuggestionsByInput(builder, activeTargets);
    }
    
-   private int interruptTp(CommandContext<ServerCommandSource> ctx){
-      if(!ctx.getSource().isExecutedByPlayer()){
-         ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+   private int interruptTp(CommandContext<CommandSourceStack> ctx){
+      if(!ctx.getSource().isPlayer()){
+         ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
          return -1;
       }
       
-      final ServerPlayerEntity player = ctx.getSource().getPlayer();
+      final ServerPlayer player = ctx.getSource().getPlayer();
       
-      boolean active = getTeleports().stream().anyMatch(tp ->  tp.player.getUuid().equals(player.getUuid()));
+      boolean active = getTeleports().stream().anyMatch(tp ->  tp.player.getUUID().equals(player.getUUID()));
       if(!active){
-         player.sendMessage(Text.translatable("text.endernexus.not_channeling").formatted(Formatting.RED),false);
+         player.displayClientMessage(Component.translatable("text.endernexus.not_channeling").withStyle(ChatFormatting.RED),false);
          return 0;
       }else{
-         SERVER_TIMER_CALLBACKS.removeIf(timer -> timer instanceof TeleportTimer tp && tp.player.getUuid().equals(player.getUuid()));
+         SERVER_TIMER_CALLBACKS.removeIf(timer -> timer instanceof TeleportTimer tp && tp.player.getUUID().equals(player.getUUID()));
          
-         BossBarManager bbm = ctx.getSource().getServer().getBossBarManager();
-         bbm.getAll().stream().filter(b -> b.getId().toString().contains("standstill-") && b.getId().toString().contains(player.getUuidAsString())).toList().forEach(b -> {
-            b.clearPlayers();
+         CustomBossEvents bbm = ctx.getSource().getServer().getCustomBossEvents();
+         bbm.getEvents().stream().filter(b -> b.getTextId().toString().contains("standstill-") && b.getTextId().toString().contains(player.getStringUUID())).toList().forEach(b -> {
+            b.removeAllPlayers();
             bbm.remove(b);
          });
       }
@@ -243,23 +244,23 @@ public class EnderNexus implements ModInitializer {
    }
    
    
-   public int tpaInit(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo, boolean tpahere){
-      if(!ctx.getSource().isExecutedByPlayer()){
-         ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+   public int tpaInit(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo, boolean tpahere){
+      if(!ctx.getSource().isPlayer()){
+         ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
          return -1;
       }
-      final ServerPlayerEntity tFrom = ctx.getSource().getPlayer();
+      final ServerPlayer tFrom = ctx.getSource().getPlayer();
       
       if(tpahere && !EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.TPAHERE_ENABLED)){
-         tFrom.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.tpahere")).formatted(Formatting.RED),false);
+         tFrom.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.tpahere")).withStyle(ChatFormatting.RED),false);
          return -1;
       }else if(!tpahere && !EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.TPAS_ENABLED)){
-         tFrom.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.tpa")).formatted(Formatting.RED),false);
+         tFrom.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.tpa")).withStyle(ChatFormatting.RED),false);
          return -1;
       }
       
       if (tFrom.equals(tTo)) {
-         tFrom.sendMessage(Text.translatable("text.endernexus.cannot_tpa_self").formatted(Formatting.RED), false);
+         tFrom.displayClientMessage(Component.translatable("text.endernexus.cannot_tpa_self").withStyle(ChatFormatting.RED), false);
          return -1;
       }
    
@@ -268,63 +269,63 @@ public class EnderNexus implements ModInitializer {
       
       RequestTimer tpa = new RequestTimer(tFrom, tTo, tpahere);
       if (getRequests().stream().anyMatch(req -> req.equals(tpa))) {
-         tFrom.sendMessage(Text.translatable("text.endernexus.already_requested").formatted(Formatting.RED), false);
+         tFrom.displayClientMessage(Component.translatable("text.endernexus.already_requested").withStyle(ChatFormatting.RED), false);
          return 1;
       }
       BorisLib.addTickTimerCallback(tpa);
       
       
       
-      MutableText senderText = tpahere ?
-            Text.translatable("text.endernexus.requested_tpahere",Text.literal(tTo.getName().getString()).formatted(Formatting.AQUA)).formatted(Formatting.LIGHT_PURPLE):
-            Text.translatable("text.endernexus.requested_tpa",Text.literal(tTo.getName().getString()).formatted(Formatting.AQUA)).formatted(Formatting.LIGHT_PURPLE);
+      MutableComponent senderText = tpahere ?
+            Component.translatable("text.endernexus.requested_tpahere", Component.literal(tTo.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.LIGHT_PURPLE):
+            Component.translatable("text.endernexus.requested_tpa", Component.literal(tTo.getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.LIGHT_PURPLE);
       
       
-      tFrom.sendMessage(senderText.append(Text.translatable("text.endernexus.requested_tpa_2",
-                  Text.literal("/tpacancel [<player>]").styled(s ->
+      tFrom.displayClientMessage(senderText.append(Component.translatable("text.endernexus.requested_tpa_2",
+                  Component.literal("/tpacancel [<player>]").withStyle(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tpacancel " + tTo.getName().getString()))
-                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpacancel " + tTo.getName().getString())))
-                              .withColor(Formatting.GREEN)),
+                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tpacancel " + tTo.getName().getString())))
+                              .withColor(ChatFormatting.GREEN)),
                   TextUtils.readableDouble(EnderNexus.CONFIG.getDouble(EnderNexusRegistry.TPA_TIMEOUT),2)
-            ).formatted(Formatting.LIGHT_PURPLE)),false);
+            ).withStyle(ChatFormatting.LIGHT_PURPLE)),false);
 
-      tTo.sendMessage(
-            Text.translatable(tpahere ? "text.endernexus.requested_tpahere_to" : "text.endernexus.requested_tpa_to",
-                  tFrom.getName().getString().formatted(Formatting.AQUA),
-                  Text.literal("/tpaaccept [<player>]").styled(s ->
+      tTo.displayClientMessage(
+            Component.translatable(tpahere ? "text.endernexus.requested_tpahere_to" : "text.endernexus.requested_tpa_to",
+                  tFrom.getName().getString().formatted(ChatFormatting.AQUA),
+                  Component.literal("/tpaaccept [<player>]").withStyle(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tpaaccept " + tFrom.getName().getString()))
-                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpaaccept " + tFrom.getName().getString())))
-                              .withColor(Formatting.GREEN)),
-                  Text.literal("/tpadeny [<player>]").styled(s ->
+                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tpaaccept " + tFrom.getName().getString())))
+                              .withColor(ChatFormatting.GREEN)),
+                  Component.literal("/tpadeny [<player>]").withStyle(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tpadeny " + tFrom.getName().getString()))
-                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpadeny " + tFrom.getName().getString())))
-                              .withColor(Formatting.GREEN)),
+                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tpadeny " + tFrom.getName().getString())))
+                              .withColor(ChatFormatting.GREEN)),
                   TextUtils.readableDouble(EnderNexus.CONFIG.getDouble(EnderNexusRegistry.TPA_TIMEOUT),2)
-            ).formatted(Formatting.LIGHT_PURPLE),false);
+            ).withStyle(ChatFormatting.LIGHT_PURPLE),false);
       return 1;
    }
    
-   public int tpaAccept(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tFrom) {
-      if(!ctx.getSource().isExecutedByPlayer()){
-         ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+   public int tpaAccept(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom) {
+      if(!ctx.getSource().isPlayer()){
+         ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
          return -1;
       }
-      final ServerPlayerEntity tTo = ctx.getSource().getPlayer();
+      final ServerPlayer tTo = ctx.getSource().getPlayer();
       
       if (tFrom == null) {
          List<RequestTimer> candidates = getRequests().stream().filter(req -> req.tTo().equals(tTo)).toList();
          if (candidates.size() > 1) {
-            MutableText text = Text.translatable("text.endernexus.multiple_tpas_accept").formatted(Formatting.LIGHT_PURPLE);
+            MutableComponent text = Component.translatable("text.endernexus.multiple_tpas_accept").withStyle(ChatFormatting.LIGHT_PURPLE);
             candidates.stream().map(req -> req.tFrom().getName().getString()).forEach(name ->
-                  text.append(Text.literal(name).styled(s ->
+                  text.append(Component.literal(name).withStyle(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tpaaccept " + name))
-                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpaaccept " + name)))
-                              .withColor(Formatting.GREEN)).append(" ")));
-            tTo.sendMessage(text, false);
+                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tpaaccept " + name)))
+                              .withColor(ChatFormatting.GREEN)).append(" ")));
+            tTo.displayClientMessage(text, false);
             return 1;
          }
          if (candidates.isEmpty()) {
-            tTo.sendMessage(Text.translatable("text.endernexus.no_tpas").formatted(Formatting.RED), false);
+            tTo.displayClientMessage(Component.translatable("text.endernexus.no_tpas").withStyle(ChatFormatting.RED), false);
             return 1;
          }
          tFrom = candidates.getFirst().tFrom();
@@ -334,48 +335,48 @@ public class EnderNexus implements ModInitializer {
       if (tr == null) return 1;
       
       if(!tr.isTPAhere() && !EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.TPAS_ENABLED)){
-         tTo.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.tpa")).formatted(Formatting.RED),false);
+         tTo.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.tpa")).withStyle(ChatFormatting.RED),false);
          return -1;
       }else if(tr.isTPAhere() && !EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.TPAHERE_ENABLED)){
-         tTo.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.tpahere")).formatted(Formatting.RED),false);
+         tTo.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.tpahere")).withStyle(ChatFormatting.RED),false);
          return -1;
       }
       
-      ServerPlayerEntity finalTFrom = tFrom;
+      ServerPlayer finalTFrom = tFrom;
       if(tr.isTPAhere()){
-         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.TPA,tTo,new TeleportTarget(finalTFrom.getEntityWorld(), finalTFrom.getEntityPos(), Vec3d.ZERO, tTo.getYaw(),tTo.getPitch(), TeleportTarget.NO_OP)));
+         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.TPA,tTo,new TeleportTransition(finalTFrom.level(), finalTFrom.position(), Vec3.ZERO, tTo.getYRot(),tTo.getXRot(), TeleportTransition.DO_NOTHING)));
       }else{
-         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.TPA,tFrom,new TeleportTarget(tTo.getEntityWorld(), tTo.getEntityPos(), Vec3d.ZERO, finalTFrom.getYaw(),finalTFrom.getPitch(), TeleportTarget.NO_OP)));
+         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.TPA,tFrom,new TeleportTransition(tTo.level(), tTo.position(), Vec3.ZERO, finalTFrom.getYRot(),finalTFrom.getXRot(), TeleportTransition.DO_NOTHING)));
       }
       
       tr.cancelTimeout();
-      tr.tTo().sendMessage(Text.translatable("text.endernexus.you_accepted_tpa").formatted(Formatting.GREEN), false);
-      tr.tFrom().sendMessage(Text.translatable("text.endernexus.they_accepted_tpa",(Text.literal(tr.tTo().getName().getString()).formatted(Formatting.AQUA)).formatted(Formatting.GREEN)), false);
+      tr.tTo().displayClientMessage(Component.translatable("text.endernexus.you_accepted_tpa").withStyle(ChatFormatting.GREEN), false);
+      tr.tFrom().displayClientMessage(Component.translatable("text.endernexus.they_accepted_tpa",(Component.literal(tr.tTo().getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.GREEN)), false);
       return 1;
    }
    
    
-   public int tpaDeny(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tFrom){
-      if(!ctx.getSource().isExecutedByPlayer()){
-         ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+   public int tpaDeny(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom){
+      if(!ctx.getSource().isPlayer()){
+         ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
          return -1;
       }
-      final ServerPlayerEntity tTo = ctx.getSource().getPlayer();
+      final ServerPlayer tTo = ctx.getSource().getPlayer();
       
       if (tFrom == null) {
          List<RequestTimer> candidates = getRequests().stream().filter(req -> req.tTo().equals(tTo)).toList();
          if (candidates.size() > 1) {
-            MutableText text = Text.translatable("text.endernexus.multiple_tpas_deny").formatted(Formatting.GREEN);
+            MutableComponent text = Component.translatable("text.endernexus.multiple_tpas_deny").withStyle(ChatFormatting.GREEN);
             candidates.stream().map(TPARequest -> TPARequest.tFrom().getName().getString()).forEach(name ->
-                  text.append(Text.literal(name).styled(s ->
+                  text.append(Component.literal(name).withStyle(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tpadeny " + name))
-                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpadeny " + name)))
-                              .withColor(Formatting.GREEN))).append(" "));
-            tTo.sendMessage(text, false);
+                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tpadeny " + name)))
+                              .withColor(ChatFormatting.GREEN))).append(" "));
+            tTo.displayClientMessage(text, false);
             return 1;
          }
          if (candidates.isEmpty()) {
-            tTo.sendMessage(Text.translatable("text.endernexus.no_tpas").formatted(Formatting.RED), false);
+            tTo.displayClientMessage(Component.translatable("text.endernexus.no_tpas").withStyle(ChatFormatting.RED), false);
             return 1;
          }
          tFrom = candidates.getFirst().tFrom();
@@ -384,42 +385,42 @@ public class EnderNexus implements ModInitializer {
       RequestTimer tr = getTPARequest(tFrom, tTo, TPAAction.DENY);
       if (tr == null) return 1;
       if(!tr.isTPAhere() && !EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.TPAS_ENABLED)){
-         tTo.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.tpa")).formatted(Formatting.RED),false);
+         tTo.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.tpa")).withStyle(ChatFormatting.RED),false);
          return -1;
       }else if(tr.isTPAhere() && !EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.TPAHERE_ENABLED)){
-         tTo.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.tpahere")).formatted(Formatting.RED),false);
+         tTo.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.tpahere")).withStyle(ChatFormatting.RED),false);
          return -1;
       }
       
       tr.cancelTimeout();
-      tr.tTo().sendMessage(Text.translatable("text.endernexus.you_cancel_tpa").formatted(Formatting.RED), false);
-      tr.tFrom().sendMessage(Text.translatable("text.endernexus.they_cancel_tpa",
-            Text.literal(tr.tTo().getName().getString()).formatted(Formatting.AQUA)
-      ).formatted(Formatting.RED), false);
+      tr.tTo().displayClientMessage(Component.translatable("text.endernexus.you_cancel_tpa").withStyle(ChatFormatting.RED), false);
+      tr.tFrom().displayClientMessage(Component.translatable("text.endernexus.they_cancel_tpa",
+            Component.literal(tr.tTo().getName().getString()).withStyle(ChatFormatting.AQUA)
+      ).withStyle(ChatFormatting.RED), false);
       return 1;
    }
    
-   public int tpaCancel(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity tTo) throws CommandSyntaxException {
-      if(!ctx.getSource().isExecutedByPlayer()){
-         ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+   public int tpaCancel(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo) throws CommandSyntaxException {
+      if(!ctx.getSource().isPlayer()){
+         ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
          return -1;
       }
-      final ServerPlayerEntity tFrom = ctx.getSource().getPlayer();
+      final ServerPlayer tFrom = ctx.getSource().getPlayer();
       
       if (tTo == null) {
          List<RequestTimer> candidates = getRequests().stream().filter(req -> req.tFrom().equals(tFrom)).toList();
          if (candidates.size() > 1) {
-            MutableText text = Text.translatable("text.endernexus.multiple_tpas_cancel").formatted(Formatting.GREEN);
+            MutableComponent text = Component.translatable("text.endernexus.multiple_tpas_cancel").withStyle(ChatFormatting.GREEN);
             candidates.stream().map(TPARequest -> TPARequest.tTo().getName().getString()).forEach(name ->
-                  text.append(Text.literal(name).styled(s ->
+                  text.append(Component.literal(name).withStyle(s ->
                         s.withClickEvent(new ClickEvent.RunCommand("/tpacancel " + name))
-                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tpacancel " + name)))
-                              .withColor(Formatting.GREEN))).append(" "));
-            tFrom.sendMessage(text, false);
+                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tpacancel " + name)))
+                              .withColor(ChatFormatting.GREEN))).append(" "));
+            tFrom.displayClientMessage(text, false);
             return 1;
          }
          if (candidates.isEmpty()) {
-            tFrom.sendMessage(Text.translatable("text.endernexus.no_tpas").formatted(Formatting.RED), false);
+            tFrom.displayClientMessage(Component.translatable("text.endernexus.no_tpas").withStyle(ChatFormatting.RED), false);
             return 1;
          }
          tTo = candidates.getFirst().tTo();
@@ -428,37 +429,37 @@ public class EnderNexus implements ModInitializer {
       RequestTimer tr = getTPARequest(tFrom, tTo, TPAAction.CANCEL);
       if (tr == null) return 1;
       if(!tr.isTPAhere() && !EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.TPAS_ENABLED)){
-         tTo.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.tpa")).formatted(Formatting.RED),false);
+         tTo.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.tpa")).withStyle(ChatFormatting.RED),false);
          return -1;
       }else if(tr.isTPAhere() && !EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.TPAHERE_ENABLED)){
-         tTo.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.tpahere")).formatted(Formatting.RED),false);
+         tTo.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.tpahere")).withStyle(ChatFormatting.RED),false);
          return -1;
       }
       
       tr.cancelTimeout();
-      tr.tFrom().sendMessage(Text.translatable("text.endernexus.you_cancel_tpa").formatted(Formatting.RED), false);
-      tr.tTo().sendMessage(Text.translatable("text.endernexus.they_cancel_tpa",
-            Text.literal(tr.tFrom().getName().getString()).formatted(Formatting.AQUA)
-      ).formatted(Formatting.RED), false);
+      tr.tFrom().displayClientMessage(Component.translatable("text.endernexus.you_cancel_tpa").withStyle(ChatFormatting.RED), false);
+      tr.tTo().displayClientMessage(Component.translatable("text.endernexus.they_cancel_tpa",
+            Component.literal(tr.tFrom().getName().getString()).withStyle(ChatFormatting.AQUA)
+      ).withStyle(ChatFormatting.RED), false);
       return 1;
    }
    
-   private int spawnTp(CommandContext<ServerCommandSource> ctx){
+   private int spawnTp(CommandContext<CommandSourceStack> ctx){
       try{
-         if(!ctx.getSource().isExecutedByPlayer()){
-            ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+         if(!ctx.getSource().isPlayer()){
+            ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
             return -1;
          }
-         ServerPlayerEntity player = ctx.getSource().getPlayer();
+         ServerPlayer player = ctx.getSource().getPlayer();
          if(!EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.SPAWN_ENABLED)){
-            player.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.spawn")).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.spawn")).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          if(checkCooldown(TPType.SPAWN,player)) return -1;
          if(activeChannels(player)) return -1;
          
-         ServerWorld world = player.getEntityWorld().getServer().getSpawnWorld();
-         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.SPAWN,player,new TeleportTarget(world, world.getSpawnPoint().getPos().toBottomCenterPos(), Vec3d.ZERO, world.getSpawnPoint().yaw(),world.getSpawnPoint().pitch(), TeleportTarget.NO_OP)));
+         ServerLevel world = player.level().getServer().findRespawnDimension();
+         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.SPAWN,player,new TeleportTransition(world, world.getRespawnData().pos().getBottomCenter(), Vec3.ZERO, world.getRespawnData().yaw(),world.getRespawnData().pitch(), TeleportTransition.DO_NOTHING)));
          return 1;
       }catch(Exception e){
          e.printStackTrace();
@@ -466,20 +467,20 @@ public class EnderNexus implements ModInitializer {
       return -1;
    }
    
-   private int randomTp(CommandContext<ServerCommandSource> ctx){
+   private int randomTp(CommandContext<CommandSourceStack> ctx){
       try{
-         if(!ctx.getSource().isExecutedByPlayer()){
-            ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+         if(!ctx.getSource().isPlayer()){
+            ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
             return -1;
          }
-         ServerPlayerEntity player = ctx.getSource().getPlayer();
+         ServerPlayer player = ctx.getSource().getPlayer();
          if(!EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.RTP_ENABLED)){
-            player.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.rtp")).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.rtp")).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          if(checkCooldown(TPType.RTP,player)) return -1;
          if(activeChannels(player)) return -1;
-         ServerWorld world = player.getEntityWorld();
+         ServerLevel world = player.level();
          
          int maxRange = EnderNexus.CONFIG.getInt(EnderNexusRegistry.RTP_MAX_RANGE);
          int minRange = EnderNexus.CONFIG.getInt(EnderNexusRegistry.RTP_MIN_RANGE);
@@ -488,8 +489,8 @@ public class EnderNexus implements ModInitializer {
          while(tries < 100){
             double angle = 2 * Math.PI * Math.random();
             double r = (maxRange-minRange)*Math.sqrt(Math.random()) + minRange;
-            int x = (int) (r * Math.cos(angle)) + world.getSpawnPoint().getPos().getX();
-            int z = (int) (r * Math.sin(angle)) + world.getSpawnPoint().getPos().getZ();
+            int x = (int) (r * Math.cos(angle)) + world.getRespawnData().pos().getX();
+            int z = (int) (r * Math.sin(angle)) + world.getRespawnData().pos().getZ();
             
             int placeTries = 0; int spread = 4;
             ArrayList<BlockPos> locations;
@@ -501,13 +502,13 @@ public class EnderNexus implements ModInitializer {
                tries++;
                continue;
             }
-            Vec3d pos = locations.get(0).toCenterPos();
+            Vec3 pos = locations.get(0).getCenter();
             
-            BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.RTP,player,new TeleportTarget(world, pos, Vec3d.ZERO, player.getYaw(),player.getPitch(), TeleportTarget.NO_OP)));
+            BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.RTP,player,new TeleportTransition(world, pos, Vec3.ZERO, player.getYRot(),player.getXRot(), TeleportTransition.DO_NOTHING)));
             return 1;
          }
          
-         player.sendMessage(Text.translatable("text.endernexus.no_rtp_spot").formatted(Formatting.RED,Formatting.ITALIC),false);
+         player.displayClientMessage(Component.translatable("text.endernexus.no_rtp_spot").withStyle(ChatFormatting.RED, ChatFormatting.ITALIC),false);
          return 0;
       }catch(Exception e){
          e.printStackTrace();
@@ -515,40 +516,40 @@ public class EnderNexus implements ModInitializer {
       return -1;
    }
    
-   private int setHome(CommandContext<ServerCommandSource> ctx, String name){
+   private int setHome(CommandContext<CommandSourceStack> ctx, String name){
       try{
-         if(!ctx.getSource().isExecutedByPlayer()){
-            ctx.getSource().sendError(Text.translatable("text.endernexus.home_set_needs_player").formatted(Formatting.RED));
+         if(!ctx.getSource().isPlayer()){
+            ctx.getSource().sendFailure(Component.translatable("text.endernexus.home_set_needs_player").withStyle(ChatFormatting.RED));
             return -1;
          }
-         ServerPlayerEntity player = ctx.getSource().getPlayer();
+         ServerPlayer player = ctx.getSource().getPlayer();
          if(!EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.HOMES_ENABLED)){
-            player.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.home")).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.home")).withStyle(ChatFormatting.RED),false);
             return -1;
          }
-         HomesStorage storage = DataAccess.getPlayer(player.getUuid(), HomesStorage.KEY);
+         HomesStorage storage = DataAccess.getPlayer(player.getUUID(), HomesStorage.KEY);
          Set<Destination> homes = storage.getHomes();
          if(homes.size() >= EnderNexus.CONFIG.getInt(EnderNexusRegistry.HOMES_MAX)){
-            player.sendMessage(Text.translatable("text.endernexus.max_homes").formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.max_homes").withStyle(ChatFormatting.RED),false);
             return -1;
          }else if(!homes.isEmpty() && name == null){
-            player.sendMessage(Text.translatable("text.endernexus.specify_home_name").formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.specify_home_name").withStyle(ChatFormatting.RED),false);
             return -1;
          }
          if(name == null) name = "main";
    
          String finalName = name;
          if(homes.stream().anyMatch(h -> h.getName().toLowerCase(Locale.ROOT).equals(finalName.toLowerCase(Locale.ROOT)))){
-            player.sendMessage(Text.translatable("text.endernexus.already_home",name).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.already_home",name).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          
-         boolean success = storage.addHome(new Destination(name,player.getEntityPos(),player.getRotationClient(),player.getEntityWorld().getRegistryKey().getValue().toString()));
+         boolean success = storage.addHome(new Destination(name,player.position(),player.getRotationVector(),player.level().dimension().identifier().toString()));
          if(success){
-            player.sendMessage(Text.translatable("text.endernexus.succeed_home_add",name).formatted(Formatting.GREEN),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.succeed_home_add",name).withStyle(ChatFormatting.GREEN),false);
             return 1;
          }else{
-            player.sendMessage(Text.translatable("text.endernexus.fail_home_add").formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.fail_home_add").withStyle(ChatFormatting.RED),false);
             return -1;
          }
       }catch(Exception e){
@@ -557,21 +558,21 @@ public class EnderNexus implements ModInitializer {
       return -1;
    }
    
-   private int delHome(CommandContext<ServerCommandSource> ctx, String name){
+   private int delHome(CommandContext<CommandSourceStack> ctx, String name){
       try{
-         if(!ctx.getSource().isExecutedByPlayer()){
-            ctx.getSource().sendError(Text.translatable("text.endernexus.home_delete_needs_player").formatted(Formatting.RED));
+         if(!ctx.getSource().isPlayer()){
+            ctx.getSource().sendFailure(Component.translatable("text.endernexus.home_delete_needs_player").withStyle(ChatFormatting.RED));
             return -1;
          }
-         ServerPlayerEntity player = ctx.getSource().getPlayer();
+         ServerPlayer player = ctx.getSource().getPlayer();
          if(!EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.HOMES_ENABLED)){
-            player.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.home")).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.home")).withStyle(ChatFormatting.RED),false);
             return -1;
          }
-         HomesStorage storage = DataAccess.getPlayer(player.getUuid(), HomesStorage.KEY);
+         HomesStorage storage = DataAccess.getPlayer(player.getUUID(), HomesStorage.KEY);
          Set<Destination> homes = storage.getHomes();
          if(homes.size() > 1 && name == null){
-            player.sendMessage(Text.translatable("text.endernexus.specify_home_delete").formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.specify_home_delete").withStyle(ChatFormatting.RED),false);
             return -1;
          }else if(homes.size() == 1 && name == null){
             name = homes.iterator().next().getName();
@@ -580,16 +581,16 @@ public class EnderNexus implements ModInitializer {
          String finalName = name;
          Optional<Destination> foundHome = homes.stream().filter(h -> h.getName().toLowerCase(Locale.ROOT).equals(finalName.toLowerCase(Locale.ROOT))).findFirst();
          if(foundHome.isEmpty()){
-            player.sendMessage(Text.translatable("text.endernexus.no_home",name).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.no_home",name).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          
          boolean success = storage.removeHome(foundHome.get());
          if(success){
-            player.sendMessage(Text.translatable("text.endernexus.succeed_home_remove").formatted(Formatting.GREEN),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.succeed_home_remove").withStyle(ChatFormatting.GREEN),false);
             return 1;
          }else{
-            player.sendMessage(Text.translatable("text.endernexus.fail_home_remove").formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.fail_home_remove").withStyle(ChatFormatting.RED),false);
             return -1;
          }
       }catch(Exception e){
@@ -598,18 +599,18 @@ public class EnderNexus implements ModInitializer {
       return -1;
    }
    
-   private int homeTp(CommandContext<ServerCommandSource> ctx, String name){
+   private int homeTp(CommandContext<CommandSourceStack> ctx, String name){
       try{
-         if(!ctx.getSource().isExecutedByPlayer()){
-            ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+         if(!ctx.getSource().isPlayer()){
+            ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
             return -1;
          }
-         ServerPlayerEntity player = ctx.getSource().getPlayer();
+         ServerPlayer player = ctx.getSource().getPlayer();
          if(!EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.HOMES_ENABLED)){
-            player.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.home")).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.home")).withStyle(ChatFormatting.RED),false);
             return -1;
          }
-         HomesStorage storage = DataAccess.getPlayer(player.getUuid(), HomesStorage.KEY);
+         HomesStorage storage = DataAccess.getPlayer(player.getUUID(), HomesStorage.KEY);
          Set<Destination> homes = storage.getHomes();
          if(name == null){
             if(homes.size() == 1){
@@ -622,17 +623,17 @@ public class EnderNexus implements ModInitializer {
          String finalName = name;
          Optional<Destination> foundHome = homes.stream().filter(h -> h.getName().toLowerCase(Locale.ROOT).equals(finalName.toLowerCase(Locale.ROOT))).findFirst();
          if(foundHome.isEmpty()){
-            player.sendMessage(Text.translatable("text.endernexus.no_home",name).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.no_home",name).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          if(checkCooldown(TPType.HOME,player)) return -1;
          if(activeChannels(player)) return -1;
          
          Destination home = foundHome.get();
-         ServerWorld world = home.getWorld(ctx.getSource().getServer());
-         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.HOME,player,new TeleportTarget(world, home.getPos(), Vec3d.ZERO, home.getRotation().y,home.getRotation().x, TeleportTarget.NO_OP)));
+         ServerLevel world = home.getWorld(ctx.getSource().getServer());
+         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.HOME,player,new TeleportTransition(world, home.getPos(), Vec3.ZERO, home.getRotation().y,home.getRotation().x, TeleportTransition.DO_NOTHING)));
          
-         player.sendMessage(Text.translatable("text.endernexus.teleporing_home",name).formatted(Formatting.LIGHT_PURPLE),false);
+         player.displayClientMessage(Component.translatable("text.endernexus.teleporing_home",name).withStyle(ChatFormatting.LIGHT_PURPLE),false);
          return 1;
       }catch(Exception e){
          e.printStackTrace();
@@ -640,31 +641,31 @@ public class EnderNexus implements ModInitializer {
       return -1;
    }
    
-   private int setWarp(CommandContext<ServerCommandSource> ctx, String name){
+   private int setWarp(CommandContext<CommandSourceStack> ctx, String name){
       try{
-         if(!ctx.getSource().isExecutedByPlayer()){
-            ctx.getSource().sendError(Text.translatable("text.endernexus.warp_set_needs_player").formatted(Formatting.RED));
+         if(!ctx.getSource().isPlayer()){
+            ctx.getSource().sendFailure(Component.translatable("text.endernexus.warp_set_needs_player").withStyle(ChatFormatting.RED));
             return -1;
          }
-         ServerPlayerEntity player = ctx.getSource().getPlayer();
+         ServerPlayer player = ctx.getSource().getPlayer();
          if(!EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.WARPS_ENABLED)){
-            player.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.warp")).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.warp")).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          WarpsStorage storage = DataAccess.getGlobal(WarpsStorage.KEY);
          Set<Destination> warps = storage.getWarps();
          
          if(warps.stream().anyMatch(h -> h.getName().toLowerCase(Locale.ROOT).equals(name.toLowerCase(Locale.ROOT)))){
-            player.sendMessage(Text.translatable("text.endernexus.already_warp",name).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.already_warp",name).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          
-         boolean success = storage.addWarp(new Destination(name,player.getEntityPos(),player.getRotationClient(),player.getEntityWorld().getRegistryKey().getValue().toString()));
+         boolean success = storage.addWarp(new Destination(name,player.position(),player.getRotationVector(),player.level().dimension().identifier().toString()));
          if(success) {
-            player.sendMessage(Text.translatable("text.endernexus.succeed_warp_add",name).formatted(Formatting.GREEN),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.succeed_warp_add",name).withStyle(ChatFormatting.GREEN),false);
             return 1;
          }else{
-            player.sendMessage(Text.translatable("text.endernexus.fail_warp_add").formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.fail_warp_add").withStyle(ChatFormatting.RED),false);
             return -1;
          }
       }catch(Exception e){
@@ -673,10 +674,10 @@ public class EnderNexus implements ModInitializer {
       return -1;
    }
    
-   private int delWarp(CommandContext<ServerCommandSource> ctx, String name){
+   private int delWarp(CommandContext<CommandSourceStack> ctx, String name){
       try{
          if(!EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.WARPS_ENABLED)){
-            ctx.getSource().sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.warp")).formatted(Formatting.RED));
+            ctx.getSource().sendSystemMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.warp")).withStyle(ChatFormatting.RED));
             return -1;
          }
          WarpsStorage storage = DataAccess.getGlobal(WarpsStorage.KEY);
@@ -684,16 +685,16 @@ public class EnderNexus implements ModInitializer {
          
          Optional<Destination> foundWarp = warps.stream().filter(h -> h.getName().toLowerCase(Locale.ROOT).equals(name.toLowerCase(Locale.ROOT))).findFirst();
          if(foundWarp.isEmpty()){
-            ctx.getSource().sendMessage(Text.translatable("text.endernexus.no_warp",name).formatted(Formatting.RED));
+            ctx.getSource().sendSystemMessage(Component.translatable("text.endernexus.no_warp",name).withStyle(ChatFormatting.RED));
             return -1;
          }
          
          boolean success = storage.removeWarp(foundWarp.get());
          if(success){
-            ctx.getSource().sendMessage(Text.translatable("text.endernexus.succeed_warp_remove",name).formatted(Formatting.GREEN));
+            ctx.getSource().sendSystemMessage(Component.translatable("text.endernexus.succeed_warp_remove",name).withStyle(ChatFormatting.GREEN));
             return 1;
          }else{
-            ctx.getSource().sendMessage(Text.translatable("text.endernexus.fail_warp_remove").formatted(Formatting.RED));
+            ctx.getSource().sendSystemMessage(Component.translatable("text.endernexus.fail_warp_remove").withStyle(ChatFormatting.RED));
             return -1;
          }
       }catch(Exception e){
@@ -702,15 +703,15 @@ public class EnderNexus implements ModInitializer {
       return -1;
    }
    
-   private int warpTp(CommandContext<ServerCommandSource> ctx, String name){
+   private int warpTp(CommandContext<CommandSourceStack> ctx, String name){
       try{
-         if(!ctx.getSource().isExecutedByPlayer()){
-            ctx.getSource().sendError(Text.translatable("text.endernexus.teleports_need_player").formatted(Formatting.RED));
+         if(!ctx.getSource().isPlayer()){
+            ctx.getSource().sendFailure(Component.translatable("text.endernexus.teleports_need_player").withStyle(ChatFormatting.RED));
             return -1;
          }
-         ServerPlayerEntity player = ctx.getSource().getPlayer();
+         ServerPlayer player = ctx.getSource().getPlayer();
          if(!EnderNexus.CONFIG.getBoolean(EnderNexusRegistry.WARPS_ENABLED)){
-            player.sendMessage(Text.translatable("text.endernexus.is_disabled",Text.translatable("text.endernexus.warp")).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.is_disabled", Component.translatable("text.endernexus.warp")).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          WarpsStorage storage = DataAccess.getGlobal(WarpsStorage.KEY);
@@ -718,16 +719,16 @@ public class EnderNexus implements ModInitializer {
          
          Optional<Destination> foundWarp = warps.stream().filter(h -> h.getName().toLowerCase(Locale.ROOT).equals(name.toLowerCase(Locale.ROOT))).findFirst();
          if(foundWarp.isEmpty()){
-            player.sendMessage(Text.translatable("text.endernexus.no_warp",name).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.no_warp",name).withStyle(ChatFormatting.RED),false);
             return -1;
          }
          if(checkCooldown(TPType.WARP,player)) return -1;
          if(activeChannels(player)) return -1;
          
          Destination warp = foundWarp.get();
-         ServerWorld world = warp.getWorld(ctx.getSource().getServer());
-         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.WARP,player,new TeleportTarget(world, warp.getPos(), Vec3d.ZERO, warp.getRotation().y,warp.getRotation().x, TeleportTarget.NO_OP)));
-         player.sendMessage(Text.translatable("text.endernexus.now_warping",name).formatted(Formatting.LIGHT_PURPLE),false);
+         ServerLevel world = warp.getWorld(ctx.getSource().getServer());
+         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.WARP,player,new TeleportTransition(world, warp.getPos(), Vec3.ZERO, warp.getRotation().y,warp.getRotation().x, TeleportTransition.DO_NOTHING)));
+         player.displayClientMessage(Component.translatable("text.endernexus.now_warping",name).withStyle(ChatFormatting.LIGHT_PURPLE),false);
          return 1;
       }catch(Exception e){
          e.printStackTrace();
@@ -735,14 +736,14 @@ public class EnderNexus implements ModInitializer {
       return -1;
    }
    
-   public static void playerDied(ServerPlayerEntity player){
+   public static void playerDied(ServerPlayer player){
       try{
-         SERVER_TIMER_CALLBACKS.removeIf(timer -> timer instanceof TeleportTimer tp && tp.player.getUuid().equals(player.getUuid()));
-         SERVER_TIMER_CALLBACKS.removeIf(timer -> timer instanceof RequestTimer req && (req.tFrom().getUuid().equals(player.getUuid()) || req.tTo().getUuid().equals(player.getUuid())));
+         SERVER_TIMER_CALLBACKS.removeIf(timer -> timer instanceof TeleportTimer tp && tp.player.getUUID().equals(player.getUUID()));
+         SERVER_TIMER_CALLBACKS.removeIf(timer -> timer instanceof RequestTimer req && (req.tFrom().getUUID().equals(player.getUUID()) || req.tTo().getUUID().equals(player.getUUID())));
    
-         BossBarManager bbm = player.getEntityWorld().getServer().getBossBarManager();
-         bbm.getAll().stream().filter(b -> b.getId().toString().contains("standstill-"+player.getUuid())).toList().forEach(b -> {
-            b.clearPlayers();
+         CustomBossEvents bbm = player.level().getServer().getCustomBossEvents();
+         bbm.getEvents().stream().filter(b -> b.getTextId().toString().contains("standstill-"+player.getUUID())).toList().forEach(b -> {
+            b.removeAllPlayers();
             bbm.remove(b);
          });
       }catch(Exception e){
@@ -750,34 +751,34 @@ public class EnderNexus implements ModInitializer {
       }
    }
    
-   private boolean activeChannels(ServerPlayerEntity player){
-      boolean active = getTeleports().stream().anyMatch(tp ->  tp.player.getUuid().equals(player.getUuid()));
+   private boolean activeChannels(ServerPlayer player){
+      boolean active = getTeleports().stream().anyMatch(tp ->  tp.player.getUUID().equals(player.getUUID()));
       if(active){
-         player.sendMessage(Text.translatable("text.endernexus.already_teleporting").formatted(Formatting.RED),false);
+         player.displayClientMessage(Component.translatable("text.endernexus.already_teleporting").withStyle(ChatFormatting.RED),false);
       }
       return active;
    }
    
-   private boolean checkCooldown(TPType type, ServerPlayerEntity player){
+   private boolean checkCooldown(TPType type, ServerPlayer player){
       for(Teleport tp : RECENT_TELEPORTS){
-         if(!tp.player.getUuidAsString().equals(player.getUuidAsString())) continue;
+         if(!tp.player.getStringUUID().equals(player.getStringUUID())) continue;
          if(tp.type != type) continue;
          if(System.currentTimeMillis() - tp.timestamp < readConfigCooldown(type) * 1000L){
             int remaining = (int) (((readConfigCooldown(type) * 1000L) - (System.currentTimeMillis() - tp.timestamp)) / 1000);
-            player.sendMessage(Text.translatable("text.endernexus.cannot_teleport_for",type.label,remaining).formatted(Formatting.RED),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.cannot_teleport_for",type.label,remaining).withStyle(ChatFormatting.RED),false);
             return true;
          }
       }
       return false;
    }
    
-   private boolean checkTPAHereCooldown(ServerPlayerEntity tFrom, ServerPlayerEntity tTo){
+   private boolean checkTPAHereCooldown(ServerPlayer tFrom, ServerPlayer tTo){
       for(Teleport tp : RECENT_TELEPORTS){
-         if(!tp.player.getUuidAsString().equals(tFrom.getUuidAsString())) continue;
+         if(!tp.player.getStringUUID().equals(tFrom.getStringUUID())) continue;
          if(tp.type != TPType.TPA) continue;
          if(System.currentTimeMillis() - tp.timestamp < readConfigCooldown(TPType.TPA) * 1000L){
             int remaining = (int) (((readConfigCooldown(TPType.TPA) * 1000L) - (System.currentTimeMillis() - tp.timestamp)) / 1000);
-            tTo.sendMessage(Text.translatable("text.endernexus.cannot_tpa_for",TPType.TPA.label,remaining).formatted(Formatting.RED),false);
+            tTo.displayClientMessage(Component.translatable("text.endernexus.cannot_tpa_for",TPType.TPA.label,remaining).withStyle(ChatFormatting.RED),false);
             return true;
          }
       }
@@ -818,18 +819,18 @@ public class EnderNexus implements ModInitializer {
       ACCEPT, DENY, CANCEL
    }
    
-   public record Teleport(ServerPlayerEntity player, TPType type, long timestamp) {
+   public record Teleport(ServerPlayer player, TPType type, long timestamp) {
    }
    
-   private RequestTimer getTPARequest(ServerPlayerEntity tFrom, ServerPlayerEntity tTo, TPAAction action) {
+   private RequestTimer getTPARequest(ServerPlayer tFrom, ServerPlayer tTo, TPAAction action) {
       Optional<RequestTimer> otr = getRequests().stream().filter(tpaRequest -> tpaRequest.tFrom().equals(tFrom) && tpaRequest.tTo().equals(tTo)).findFirst();
       
       if (otr.isEmpty()) {
          if (action == TPAAction.CANCEL) {
             
-            tFrom.sendMessage(Text.translatable("text.endernexus.no_ongoing_request").formatted(Formatting.RED), false);
+            tFrom.displayClientMessage(Component.translatable("text.endernexus.no_ongoing_request").withStyle(ChatFormatting.RED), false);
          } else {
-            tTo.sendMessage(Text.translatable("text.endernexus.no_ongoing_request").formatted(Formatting.RED), false);
+            tTo.displayClientMessage(Component.translatable("text.endernexus.no_ongoing_request").withStyle(ChatFormatting.RED), false);
          }
          return null;
       }
@@ -837,12 +838,12 @@ public class EnderNexus implements ModInitializer {
       return otr.get();
    }
    
-   private static int getY(BlockView blockView, int maxY, Vec3d pos) {
-      BlockPos.Mutable mutable = new BlockPos.Mutable(pos.x, maxY + 1, pos.z);
+   private static int getY(BlockGetter blockView, int maxY, Vec3 pos) {
+      BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos(pos.x, maxY + 1, pos.z);
       boolean bl = blockView.getBlockState(mutable).isAir();
       mutable.move(Direction.DOWN);
       boolean bl2 = blockView.getBlockState(mutable).isAir();
-      while (mutable.getY() > blockView.getBottomY()) {
+      while (mutable.getY() > blockView.getMinY()) {
          mutable.move(Direction.DOWN);
          boolean bl3 = blockView.getBlockState(mutable).isAir();
          if (!bl3 && bl2 && bl) {
@@ -854,15 +855,15 @@ public class EnderNexus implements ModInitializer {
       return maxY + 1;
    }
    
-   public static boolean isSafe(BlockView world, int maxY, Vec3d pos) {
-      BlockPos blockPos = BlockPos.ofFloored(pos.x, getY(world, maxY, pos) - 1, pos.z);
+   public static boolean isSafe(BlockGetter world, int maxY, Vec3 pos) {
+      BlockPos blockPos = BlockPos.containing(pos.x, getY(world, maxY, pos) - 1, pos.z);
       BlockState blockState = world.getBlockState(blockPos);
       FluidState fluidState = world.getFluidState(blockPos);
-      boolean invalid = blockState.isOf(Blocks.WITHER_ROSE) || blockState.isOf(Blocks.SWEET_BERRY_BUSH) || blockState.isOf(Blocks.CACTUS) || blockState.isOf(Blocks.POWDER_SNOW) || blockState.isIn(BlockTags.PREVENT_MOB_SPAWNING_INSIDE) || LandPathNodeMaker.isFireDamaging(blockState);
+      boolean invalid = blockState.is(Blocks.WITHER_ROSE) || blockState.is(Blocks.SWEET_BERRY_BUSH) || blockState.is(Blocks.CACTUS) || blockState.is(Blocks.POWDER_SNOW) || blockState.is(BlockTags.PREVENT_MOB_SPAWNING_INSIDE) || WalkNodeEvaluator.isBurningBlock(blockState);
       return blockPos.getY() < maxY && fluidState.isEmpty() && !invalid;
    }
    
-   public static ArrayList<BlockPos> makeSpawnLocations(int num, int range, int maxY, ServerWorld world, BlockPos center){
+   public static ArrayList<BlockPos> makeSpawnLocations(int num, int range, int maxY, ServerLevel world, BlockPos center){
       ArrayList<BlockPos> positions = new ArrayList<>();
       for(int i = 0; i < num; i++){
          int tries = 0;
@@ -871,8 +872,8 @@ public class EnderNexus implements ModInitializer {
             x = center.getX() + (int) (Math.random() * range * 2 - range);
             z = center.getZ() + (int) (Math.random() * range * 2 - range);
             tries++;
-         }while(!isSafe(world,maxY, new Vec3d(x,0,z)) && tries < 10000);
-         positions.add(BlockPos.ofFloored(x,getY(world,maxY,new Vec3d(x,0,z)),z));
+         }while(!isSafe(world,maxY, new Vec3(x,0,z)) && tries < 10000);
+         positions.add(BlockPos.containing(x,getY(world,maxY,new Vec3(x,0,z)),z));
       }
       return positions;
    }

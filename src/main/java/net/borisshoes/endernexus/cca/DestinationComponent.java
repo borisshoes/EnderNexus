@@ -1,12 +1,14 @@
 package net.borisshoes.endernexus.cca;
 
 import net.borisshoes.endernexus.Destination;
-import net.minecraft.nbt.*;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.storage.ReadView;
-import net.minecraft.storage.WriteView;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.DoubleTag;
+import net.minecraft.nbt.FloatTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.Vec2;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,15 +35,15 @@ public class DestinationComponent implements IDestinationComponent{
    }
    
    @Override
-   public void readData(ReadView view){
+   public void readData(ValueInput view){
       try{
          destinations.clear();
-         for(NbtCompound destTag : view.getTypedListView("Destinations", NbtCompound.CODEC)){
-            NbtList posTag = destTag.getList("pos").orElse(new NbtList());
-            Vec3d pos = new Vec3d(posTag.getDouble(0,0),posTag.getDouble(1,0),posTag.getDouble(2,0));
-            NbtList rotTag = destTag.getList("rot").orElse(new NbtList());
-            Vec2f rot = new Vec2f(rotTag.getFloat(0,0),rotTag.getFloat(1,0));
-            destinations.add(new Destination(destTag.getString("name",""),pos,rot,destTag.getString("world","")));
+         for(CompoundTag destTag : view.listOrEmpty("Destinations", CompoundTag.CODEC)){
+            ListTag posTag = destTag.getList("pos").orElse(new ListTag());
+            Vec3 pos = new Vec3(posTag.getDoubleOr(0,0),posTag.getDoubleOr(1,0),posTag.getDoubleOr(2,0));
+            ListTag rotTag = destTag.getList("rot").orElse(new ListTag());
+            Vec2 rot = new Vec2(rotTag.getFloatOr(0,0),rotTag.getFloatOr(1,0));
+            destinations.add(new Destination(destTag.getStringOr("name",""),pos,rot,destTag.getStringOr("world","")));
          }
       }catch(Exception e){
          e.printStackTrace();
@@ -49,18 +51,18 @@ public class DestinationComponent implements IDestinationComponent{
    }
    
    @Override
-   public void writeData(WriteView view){
+   public void writeData(ValueOutput view){
       try{
-         WriteView.ListAppender<NbtCompound> listAppender = view.getListAppender("Destinations", NbtCompound.CODEC);
+         ValueOutput.TypedOutputList<CompoundTag> listAppender = view.list("Destinations", CompoundTag.CODEC);
          for(Destination dest : destinations){
-            NbtCompound blockTag = new NbtCompound();
-            NbtList pos = new NbtList();
-            pos.add(0, NbtDouble.of(dest.getPos().getX()));
-            pos.add(1, NbtDouble.of(dest.getPos().getY()));
-            pos.add(2, NbtDouble.of(dest.getPos().getZ()));
-            NbtList rot = new NbtList();
-            rot.add(0, NbtFloat.of(dest.getRotation().x));
-            rot.add(1, NbtFloat.of(dest.getRotation().y));
+            CompoundTag blockTag = new CompoundTag();
+            ListTag pos = new ListTag();
+            pos.add(0, DoubleTag.valueOf(dest.getPos().x()));
+            pos.add(1, DoubleTag.valueOf(dest.getPos().y()));
+            pos.add(2, DoubleTag.valueOf(dest.getPos().z()));
+            ListTag rot = new ListTag();
+            rot.add(0, FloatTag.valueOf(dest.getRotation().x));
+            rot.add(1, FloatTag.valueOf(dest.getRotation().y));
             blockTag.put("pos",pos);
             blockTag.put("rot",rot);
             blockTag.putString("name",dest.getName());

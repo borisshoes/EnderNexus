@@ -6,10 +6,12 @@ import net.borisshoes.borislib.datastorage.DataKey;
 import net.borisshoes.borislib.datastorage.DataRegistry;
 import net.borisshoes.borislib.utils.CodecUtils;
 import net.borisshoes.endernexus.Destination;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Uuids;
+import net.minecraft.resources.Identifier;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 import static net.borisshoes.endernexus.EnderNexus.MOD_ID;
 
@@ -23,7 +25,7 @@ public class HomesStorage {
       return storage;
    }));
    
-   public static final DataKey<HomesStorage> KEY = DataRegistry.register(DataKey.ofPlayer(Identifier.of(MOD_ID, "timestamp"),CODEC,HomesStorage::new));
+   public static final DataKey<HomesStorage> KEY = DataRegistry.register(DataKey.ofPlayer(Identifier.fromNamespaceAndPath(MOD_ID, "timestamp"),CODEC,HomesStorage::new));
    
    public final Set<Destination> homes = new HashSet<>();
    public final UUID playerID;

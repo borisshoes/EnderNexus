@@ -1,6 +1,5 @@
 package net.borisshoes.endernexus.cca;
 
-import net.borisshoes.borislib.BorisLib;
 import net.borisshoes.borislib.datastorage.DataAccess;
 import net.borisshoes.endernexus.Destination;
 import net.borisshoes.endernexus.EnderNexus;
@@ -8,8 +7,8 @@ import net.borisshoes.endernexus.storage.HomesStorage;
 import net.borisshoes.endernexus.storage.WarpsStorage;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayNetworkHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
 
 import java.util.List;
 import java.util.Locale;
@@ -20,8 +19,7 @@ import static net.borisshoes.endernexus.cca.WorldDataComponentInitializer.WARPS;
 
 public class DataFixer {
    public static void serverStarted(MinecraftServer server){
-      List<Destination> oldWarps = WARPS.get(server.getOverworld()).getDestinations();
-      if(BorisLib.SERVER == null) BorisLib.SERVER = server; // TODO should be able to remove in a later borislib version
+      List<Destination> oldWarps = WARPS.get(server.overworld()).getDestinations();
       WarpsStorage storage = DataAccess.getGlobal(WarpsStorage.KEY);
       Set<Destination> warps = storage.getWarps();
       int converted = 0;
@@ -47,10 +45,10 @@ public class DataFixer {
       }
    }
    
-   public static void onPlayerJoin(ServerPlayNetworkHandler handler, PacketSender packetSender, MinecraftServer server){
-      ServerPlayerEntity player = handler.getPlayer();
+   public static void onPlayerJoin(ServerGamePacketListenerImpl handler, PacketSender packetSender, MinecraftServer server){
+      ServerPlayer player = handler.getPlayer();
       List<Destination> oldHomes = HOMES.get(player).getDestinations();
-      HomesStorage storage = DataAccess.getPlayer(player.getUuid(),HomesStorage.KEY);
+      HomesStorage storage = DataAccess.getPlayer(player.getUUID(),HomesStorage.KEY);
       Set<Destination> homes = storage.getHomes();
       int converted = 0;
       
@@ -71,7 +69,7 @@ public class DataFixer {
       }
       if(converted > 0){
          oldHomes.clear();
-         EnderNexus.LOGGER.info("Ender Nexus has converted {} old Homes for player {} into BorisLib data format. This operation should not repeat itself for this player.", converted, player.getNameForScoreboard());
+         EnderNexus.LOGGER.info("Ender Nexus has converted {} old Homes for player {} into BorisLib data format. This operation should not repeat itself for this player.", converted, player.getScoreboardName());
       }
    }
 }

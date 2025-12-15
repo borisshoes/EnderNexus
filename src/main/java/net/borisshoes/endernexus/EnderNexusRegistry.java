@@ -6,16 +6,15 @@ import net.borisshoes.borislib.config.IConfigSetting;
 import net.borisshoes.borislib.config.values.BooleanConfigValue;
 import net.borisshoes.borislib.config.values.DoubleConfigValue;
 import net.borisshoes.borislib.config.values.IntConfigValue;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.SimpleRegistry;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.MappedRegistry;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 
 import static net.borisshoes.endernexus.EnderNexus.MOD_ID;
 
 public class EnderNexusRegistry {
-   public static final Registry<IConfigSetting<?>> CONFIG_SETTINGS = new SimpleRegistry<>(RegistryKey.ofRegistry(Identifier.of(MOD_ID,"config_settings")), Lifecycle.stable());
+   public static final Registry<IConfigSetting<?>> CONFIG_SETTINGS = new MappedRegistry<>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(MOD_ID,"config_settings")), Lifecycle.stable());
    
    public static final IConfigSetting<?> HOMES_ENABLED = registerConfigSetting(new ConfigSetting<>(
          new BooleanConfigValue("homes", true)));
@@ -71,7 +70,7 @@ public class EnderNexusRegistry {
          new IntConfigValue("rtpMaxRange", 1000, new IntConfigValue.IntLimits(1))));
    
    private static IConfigSetting<?> registerConfigSetting(IConfigSetting<?> setting){
-      Registry.register(CONFIG_SETTINGS,Identifier.of(MOD_ID,setting.getId()),setting);
+      Registry.register(CONFIG_SETTINGS, Identifier.fromNamespaceAndPath(MOD_ID,setting.getId()),setting);
       return setting;
    }
 }

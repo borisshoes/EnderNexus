@@ -1,13 +1,13 @@
 package net.borisshoes.endernexus.cca;
 
+import net.minecraft.resources.Identifier;
 import org.ladysnake.cca.api.v3.component.ComponentKey;
 import org.ladysnake.cca.api.v3.component.ComponentRegistryV3;
 import org.ladysnake.cca.api.v3.world.WorldComponentFactoryRegistry;
 import org.ladysnake.cca.api.v3.world.WorldComponentInitializer;
-import net.minecraft.util.Identifier;
 
 public class WorldDataComponentInitializer implements WorldComponentInitializer {
-   public static final ComponentKey<IDestinationComponent> WARPS = ComponentRegistryV3.INSTANCE.getOrCreate(Identifier.of("endernexus", "warps"), IDestinationComponent.class);
+   public static final ComponentKey<IDestinationComponent> WARPS = ComponentRegistryV3.INSTANCE.getOrCreate(Identifier.fromNamespaceAndPath("endernexus", "warps"), IDestinationComponent.class);
    
    @Override
    public void registerWorldComponentFactories(WorldComponentFactoryRegistry registry){
