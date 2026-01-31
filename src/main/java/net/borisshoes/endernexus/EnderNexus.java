@@ -44,6 +44,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -344,9 +345,11 @@ public class EnderNexus implements ModInitializer {
       
       ServerPlayer finalTFrom = tFrom;
       if(tr.isTPAhere()){
-         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.TPA,tTo,new TeleportTransition(finalTFrom.level(), finalTFrom.position(), Vec3.ZERO, tTo.getYRot(),tTo.getXRot(), TeleportTransition.DO_NOTHING)));
+         Supplier<TeleportTransition> tpSource = () -> new TeleportTransition(finalTFrom.level(), finalTFrom.position(), Vec3.ZERO, tTo.getYRot(),tTo.getXRot(), TeleportTransition.DO_NOTHING);
+         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.TPA,tTo,tpSource));
       }else{
-         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.TPA,tFrom,new TeleportTransition(tTo.level(), tTo.position(), Vec3.ZERO, finalTFrom.getYRot(),finalTFrom.getXRot(), TeleportTransition.DO_NOTHING)));
+         Supplier<TeleportTransition> tpSource = () -> new TeleportTransition(tTo.level(), tTo.position(), Vec3.ZERO, finalTFrom.getYRot(),finalTFrom.getXRot(), TeleportTransition.DO_NOTHING);
+         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.TPA,tFrom,tpSource));
       }
       
       tr.cancelTimeout();
@@ -587,7 +590,7 @@ public class EnderNexus implements ModInitializer {
          
          boolean success = storage.removeHome(foundHome.get());
          if(success){
-            player.displayClientMessage(Component.translatable("text.endernexus.succeed_home_remove").withStyle(ChatFormatting.GREEN),false);
+            player.displayClientMessage(Component.translatable("text.endernexus.succeed_home_remove",foundHome.get().getName()).withStyle(ChatFormatting.GREEN),false);
             return 1;
          }else{
             player.displayClientMessage(Component.translatable("text.endernexus.fail_home_remove").withStyle(ChatFormatting.RED),false);

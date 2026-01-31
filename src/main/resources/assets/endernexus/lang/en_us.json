@@ -49,7 +49,7 @@
   "text.endernexus.already_requested": "There is already an ongoing request like this!",
   "text.endernexus.already_teleporting": "You are already channeling a teleport!",
   "text.endernexus.already_warp": "There is already a warp named '%s'",
-  "text.endernexus.cannot_teleport_for": "You cannot /% for another %s seconds.",
+  "text.endernexus.cannot_teleport_for": "You cannot /%s for another %s seconds.",
   "text.endernexus.cannot_tpa_for": "That player cannot /%s for another %s seconds.",
   "text.endernexus.cannot_tpa_self": "You cannot request to TPA to yourself!",
   "text.endernexus.charging_teleport": "Teleport Charging: %s Seconds Remaining",

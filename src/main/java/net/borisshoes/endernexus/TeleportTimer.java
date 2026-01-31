@@ -26,6 +26,8 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.Supplier;
+
 import static net.borisshoes.endernexus.EnderNexus.CONFIG;
 import static net.borisshoes.endernexus.EnderNexus.RECENT_TELEPORTS;
 
@@ -33,16 +35,16 @@ public class TeleportTimer extends TickTimerCallback {
    
    public final ServerPlayer player;
    public final EnderNexus.TPType type;
-   public final TeleportTransition tpTarget;
+   public final Supplier<TeleportTransition> tpTargetSource;
    public final long startTime;
    public final CustomBossEvent bossBar;
    public final Vec3 lastPos;
    
-   public TeleportTimer(EnderNexus.TPType type, ServerPlayer player, TeleportTransition tpTarget, long startTime, Vec3 lastPos, @Nullable CustomBossEvent bossbar){
+   public TeleportTimer(EnderNexus.TPType type, ServerPlayer player, Supplier<TeleportTransition> tpTargetSource, long startTime, Vec3 lastPos, @Nullable CustomBossEvent bossbar){
       super(1, null, player);
       this.player = player;
       this.type = type;
-      this.tpTarget = tpTarget;
+      this.tpTargetSource = tpTargetSource;
       this.startTime = startTime;
       this.bossBar = bossbar;
       this.lastPos = lastPos;
@@ -54,6 +56,7 @@ public class TeleportTimer extends TickTimerCallback {
       double seconds = EnderNexus.readConfigWarmup(type);
       double timeDiff = (System.currentTimeMillis()-newStart) / 1000.0;
       if(timeDiff >= seconds){
+         TeleportTransition tpTarget = tpTargetSource.get();
          player.connection.send(new ClientboundClearTitlesPacket(true));
          if (bossBar != null) {
             bossBar.removePlayer(player);
@@ -95,11 +98,15 @@ public class TeleportTimer extends TickTimerCallback {
             bossBar.setName(Component.translatable("text.endernexus.charging_teleport",TextUtils.readableInt((int)(seconds-timeDiff))).withStyle(ChatFormatting.LIGHT_PURPLE));
          }
          
-         BorisLib.addTickTimerCallback(new TeleportTimer(type,player,tpTarget,newStart,player.position(),bossBar));
+         BorisLib.addTickTimerCallback(new TeleportTimer(type,player,tpTargetSource,newStart,player.position(),bossBar));
       }
    }
    
    public static TeleportTimer startTeleport(EnderNexus.TPType type, ServerPlayer player, TeleportTransition tpTarget){
+      return startTeleport(type,player,() -> tpTarget);
+   }
+   
+   public static TeleportTimer startTeleport(EnderNexus.TPType type, ServerPlayer player, Supplier<TeleportTransition> tpTargetSource){
       MinecraftServer server = player.level().getServer();
       CustomBossEvent standStillBar = null;
       long start = System.currentTimeMillis();
@@ -113,7 +120,7 @@ public class TeleportTimer extends TickTimerCallback {
          standStillBar.setColor(BossEvent.BossBarColor.GREEN);
          player.connection.send(new ClientboundSetTitlesAnimationPacket(0, 10, 5));
       }
-      return new TeleportTimer(type,player,tpTarget,start,player.position(),standStillBar);
+      return new TeleportTimer(type,player,tpTargetSource,start,player.position(),standStillBar);
    }
    
    private static void teleportParticles(ServerLevel world, Vec3 pos, int tick){
