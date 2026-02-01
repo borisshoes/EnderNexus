@@ -1,37 +1,47 @@
 package net.borisshoes.endernexus.storage;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.borisshoes.borislib.datastorage.DataKey;
 import net.borisshoes.borislib.datastorage.DataRegistry;
-import net.borisshoes.borislib.utils.CodecUtils;
+import net.borisshoes.borislib.datastorage.StorableData;
 import net.borisshoes.endernexus.Destination;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.storage.ValueInput;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 import static net.borisshoes.endernexus.EnderNexus.MOD_ID;
 
-public class HomesStorage {
-   public static final Codec<HomesStorage> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-         CodecUtils.UUID_CODEC.fieldOf("player_id").forGetter(storage -> storage.playerID),
-         Destination.CODEC.listOf().fieldOf("homes").forGetter(storage -> new ArrayList<>(storage.getHomes()))
-   ).apply(instance, (uuid, homes) -> {
-      HomesStorage storage = new HomesStorage(uuid);
-      storage.homes.addAll(homes);
-      return storage;
-   }));
+public class HomesStorage implements StorableData {
    
-   public static final DataKey<HomesStorage> KEY = DataRegistry.register(DataKey.ofPlayer(Identifier.fromNamespaceAndPath(MOD_ID, "timestamp"),CODEC,HomesStorage::new));
+   public static final DataKey<HomesStorage> KEY = DataRegistry.register(DataKey.ofPlayer(Identifier.fromNamespaceAndPath(MOD_ID, "timestamp"), HomesStorage::new));
    
    public final Set<Destination> homes = new HashSet<>();
    public final UUID playerID;
    
    public HomesStorage(UUID playerID){
       this.playerID = playerID;
+   }
+   
+   @Override
+   public void read(ValueInput view){
+      homes.clear();
+      for(Destination dest : view.listOrEmpty("homes", Destination.CODEC)){
+         homes.add(dest);
+      }
+   }
+   
+   @Override
+   public void writeNbt(CompoundTag tag){
+      ListTag homesList = new ListTag();
+      for(Destination home : homes){
+         Destination.CODEC.encodeStart(NbtOps.INSTANCE, home).result().ifPresent(homesList::add);
+      }
+      tag.put("homes", homesList);
    }
    
    public Set<Destination> getHomes(){
