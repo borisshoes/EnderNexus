@@ -18,7 +18,7 @@ import static net.borisshoes.endernexus.EnderNexus.MOD_ID;
 
 public class HomesStorage implements StorableData {
    
-   public static final DataKey<HomesStorage> KEY = DataRegistry.register(DataKey.ofPlayer(Identifier.fromNamespaceAndPath(MOD_ID, "timestamp"), HomesStorage::new));
+   public static final DataKey<HomesStorage> KEY = DataRegistry.register(DataKey.ofPlayer(Identifier.fromNamespaceAndPath(MOD_ID, "homes"), HomesStorage::new));
    
    public final Set<Destination> homes = new HashSet<>();
    public final UUID playerID;

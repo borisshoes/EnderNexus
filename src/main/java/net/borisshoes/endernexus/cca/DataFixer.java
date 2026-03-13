@@ -4,7 +4,9 @@ import net.borisshoes.borislib.datastorage.DataAccess;
 import net.borisshoes.endernexus.Destination;
 import net.borisshoes.endernexus.EnderNexus;
 import net.borisshoes.endernexus.storage.HomesStorage;
+import net.borisshoes.endernexus.storage.HomesStorageLegacy;
 import net.borisshoes.endernexus.storage.WarpsStorage;
+import net.borisshoes.endernexus.storage.WarpsStorageLegacy;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,7 +23,18 @@ public class DataFixer {
    public static void serverStarted(MinecraftServer server){
       List<Destination> oldWarps = WARPS.get(server.overworld()).getDestinations();
       WarpsStorage storage = DataAccess.getGlobal(WarpsStorage.KEY);
+      WarpsStorageLegacy legacyStorage = DataAccess.getGlobal(WarpsStorageLegacy.KEY);
       Set<Destination> warps = storage.getWarps();
+      
+      // Migrate from legacy "timestamp" key if data exists
+      if(legacyStorage.hasLegacyData()){
+         for(Destination warp : legacyStorage.getWarps()){
+            storage.addWarp(warp);
+         }
+         legacyStorage.getWarps().clear();
+         EnderNexus.LOGGER.info("Migrated warps from legacy storage key");
+      }
+      
       int converted = 0;
       
       for(Destination oldWarp : oldWarps){
@@ -49,7 +62,18 @@ public class DataFixer {
       ServerPlayer player = handler.getPlayer();
       List<Destination> oldHomes = HOMES.get(player).getDestinations();
       HomesStorage storage = DataAccess.getPlayer(player.getUUID(),HomesStorage.KEY);
+      HomesStorageLegacy legacyStorage = DataAccess.getPlayer(player.getUUID(),HomesStorageLegacy.KEY);
       Set<Destination> homes = storage.getHomes();
+      
+      // Migrate from legacy "timestamp" key if data exists
+      if(legacyStorage.hasLegacyData()){
+         for(Destination home : legacyStorage.getHomes()){
+            storage.addHome(home);
+         }
+         legacyStorage.getHomes().clear();
+         EnderNexus.LOGGER.info("Migrated homes from legacy storage key for player {}", player.getScoreboardName());
+      }
+      
       int converted = 0;
       
       for(Destination oldHome : oldHomes){

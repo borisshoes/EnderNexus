@@ -13,11 +13,12 @@ import net.minecraft.world.level.storage.ValueInput;
 import java.util.HashSet;
 import java.util.Set;
 
+import static net.borisshoes.endernexus.EnderNexus.LOGGER;
 import static net.borisshoes.endernexus.EnderNexus.MOD_ID;
 
 public class WarpsStorage implements StorableData {
    
-   public static final DataKey<WarpsStorage> KEY = DataRegistry.register(DataKey.ofGlobal(Identifier.fromNamespaceAndPath(MOD_ID, "timestamp"), WarpsStorage::new));
+   public static final DataKey<WarpsStorage> KEY = DataRegistry.register(DataKey.ofGlobal(Identifier.fromNamespaceAndPath(MOD_ID, "warps"), WarpsStorage::new));
    
    public final Set<Destination> warps = new HashSet<>();
    
@@ -26,8 +27,15 @@ public class WarpsStorage implements StorableData {
    @Override
    public void read(ValueInput view){
       warps.clear();
+      int count = 0;
       for(Destination dest : view.listOrEmpty("warps", Destination.CODEC)){
          warps.add(dest);
+         count++;
+      }
+      if(!view.contains("warps")){
+         LOGGER.warn("Found no saved warps!");
+      }else{
+         LOGGER.info("Loaded {} warps", count);
       }
    }
    
