@@ -24,6 +24,7 @@ public class HomesStorageLegacy implements StorableData {
    
    public final Set<Destination> homes = new HashSet<>();
    public final UUID playerID;
+   private boolean migrated = false;
    private boolean hasData = false;
    
    public HomesStorageLegacy(UUID playerID){
@@ -33,7 +34,10 @@ public class HomesStorageLegacy implements StorableData {
    @Override
    public void read(ValueInput view){
       homes.clear();
-      if(view.contains("homes")){
+      migrated = view.getBooleanOr("migrated",false);
+      
+      // Only load legacy data if not already migrated
+      if(!migrated && view.contains("homes")){
          for(Destination dest : view.listOrEmpty("homes", Destination.CODEC)){
             homes.add(dest);
          }
@@ -45,8 +49,7 @@ public class HomesStorageLegacy implements StorableData {
    
    @Override
    public void writeNbt(CompoundTag tag){
-      // Intentionally empty - we don't want to save anything to the old key
-      // This prevents the "Saved 0 homes" overwrite issue
+      tag.putBoolean("migrated", migrated);
    }
    
    public Set<Destination> getHomes(){
@@ -54,7 +57,13 @@ public class HomesStorageLegacy implements StorableData {
    }
    
    public boolean hasLegacyData(){
-      return hasData;
+      return hasData && !migrated;
+   }
+   
+   public void markMigrated(){
+      this.migrated = true;
+      this.hasData = false;
+      this.homes.clear();
    }
 }
 

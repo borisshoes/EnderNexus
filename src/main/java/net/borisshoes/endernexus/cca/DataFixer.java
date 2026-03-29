@@ -31,7 +31,7 @@ public class DataFixer {
          for(Destination warp : legacyStorage.getWarps()){
             storage.addWarp(warp);
          }
-         legacyStorage.getWarps().clear();
+         legacyStorage.markMigrated();
          EnderNexus.LOGGER.info("Migrated warps from legacy storage key");
       }
       
@@ -70,7 +70,7 @@ public class DataFixer {
          for(Destination home : legacyStorage.getHomes()){
             storage.addHome(home);
          }
-         legacyStorage.getHomes().clear();
+         legacyStorage.markMigrated();
          EnderNexus.LOGGER.info("Migrated homes from legacy storage key for player {}", player.getScoreboardName());
       }
       

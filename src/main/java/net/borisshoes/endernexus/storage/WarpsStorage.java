@@ -1,5 +1,6 @@
 package net.borisshoes.endernexus.storage;
 
+import net.borisshoes.borislib.datastorage.DataAccess;
 import net.borisshoes.borislib.datastorage.DataKey;
 import net.borisshoes.borislib.datastorage.DataRegistry;
 import net.borisshoes.borislib.datastorage.StorableData;
@@ -8,6 +9,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.ValueInput;
 
 import java.util.HashSet;
@@ -59,5 +61,10 @@ public class WarpsStorage implements StorableData {
    
    public boolean removeWarp(Destination warp){
       return warps.remove(warp);
+   }
+   
+   public static void onServerStopping(MinecraftServer server){
+      WarpsStorage storage = DataAccess.getGlobal(KEY);
+      LOGGER.info("Saving {} warps on server shutdown", storage.getWarps().size());
    }
 }

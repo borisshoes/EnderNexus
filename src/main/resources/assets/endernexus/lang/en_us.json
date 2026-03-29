@@ -1,6 +1,8 @@
 {
   "command.endernexus.bossbar.comment": "Show Bossbar.",
   "command.endernexus.bossbar.getter_setter": "Show Bossbar: %s",
+  "command.endernexus.command_logging.comment": "Log teleport commands to console.",
+  "command.endernexus.command_logging.getter_setter": "Command Logging: %s",
   "command.endernexus.homes.comment": "Homes allowed.",
   "command.endernexus.homes.getter_setter": "Homes allowed: %s",
   "command.endernexus.homes_cooldown.comment": "Home cooldown time in seconds.",
@@ -100,5 +102,9 @@
   "text.endernexus.warp_set_needs_player": "Warps must be set by a player!",
   "text.endernexus.you_accepted_tpa": "You have accepted the TPA request!",
   "text.endernexus.you_cancel_tpa": "You have cancelled the TPA request!",
-  "text.endernexus.your_tpa_timeout": "Your %s request to %s has timed out!"
+  "text.endernexus.your_tpa_timeout": "Your %s request to %s has timed out!",
+  "log.endernexus.command": "%s executed /%s at %s in %s",
+  "log.endernexus.command_with_details": "%s executed /%s (%s) at %s in %s",
+  "log.endernexus.to_player": "to %s",
+  "log.endernexus.from_player": "from %s"
 }

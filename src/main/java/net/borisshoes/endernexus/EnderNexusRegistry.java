@@ -35,6 +35,8 @@ public class EnderNexusRegistry {
          new BooleanConfigValue("particles", true)));
    public static final IConfigSetting<?> SOUND_ENABLED = registerConfigSetting(new ConfigSetting<>(
          new BooleanConfigValue("sound", true)));
+   public static final IConfigSetting<?> COMMAND_LOGGING = registerConfigSetting(new ConfigSetting<>(
+         new BooleanConfigValue("commandLogging", false)));
    
    public static final IConfigSetting<?> HOMES_WARMUP = registerConfigSetting(new ConfigSetting<>(
          new DoubleConfigValue("homesWarmup", 5.0, new DoubleConfigValue.DoubleLimits(0))));

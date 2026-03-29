@@ -75,6 +75,7 @@ public class EnderNexus implements ModInitializer {
       CONFIG = new ConfigManager(MOD_ID,"Ancestral Archetypes",CONFIG_NAME,CONFIG_SETTINGS);
       
       ServerLifecycleEvents.SERVER_STARTED.register(DataFixer::serverStarted);
+      ServerLifecycleEvents.SERVER_STOPPING.register(WarpsStorage::onServerStopping);
       ServerPlayConnectionEvents.JOIN.register(DataFixer::onPlayerJoin);
    
       CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
@@ -275,6 +276,13 @@ public class EnderNexus implements ModInitializer {
       }
       BorisLib.addTickTimerCallback(tpa);
       
+      // For tpa: tFrom goes to tTo's position
+      // For tpahere: tTo goes to tFrom's position
+      ServerPlayer destination = tpahere ? tFrom : tTo;
+      logCommand(tFrom.getScoreboardName(), tpahere ? "tpahere" : "tpa", 
+            Component.translatable("log.endernexus.to_player", tTo.getScoreboardName()).getString(),
+            destination.position(), destination.level().dimension().identifier().toString());
+      
       
       
       MutableComponent senderText = tpahere ?
@@ -355,6 +363,12 @@ public class EnderNexus implements ModInitializer {
       tr.cancelTimeout();
       tr.tTo().displayClientMessage(Component.translatable("text.endernexus.you_accepted_tpa").withStyle(ChatFormatting.GREEN), false);
       tr.tFrom().displayClientMessage(Component.translatable("text.endernexus.they_accepted_tpa",(Component.literal(tr.tTo().getName().getString()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.GREEN)), false);
+      
+      // Log with destination info
+      ServerPlayer destination = tr.isTPAhere() ? finalTFrom : tTo;
+      logCommand(tTo.getScoreboardName(), "tpaaccept", 
+            Component.translatable("log.endernexus.from_player", tFrom.getScoreboardName()).getString(),
+            destination.position(), destination.level().dimension().identifier().toString());
       return 1;
    }
    
@@ -463,6 +477,8 @@ public class EnderNexus implements ModInitializer {
          
          ServerLevel world = player.level().getServer().findRespawnDimension();
          BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.SPAWN,player,new TeleportTransition(world, world.getRespawnData().pos().getBottomCenter(), Vec3.ZERO, world.getRespawnData().yaw(),world.getRespawnData().pitch(), TeleportTransition.DO_NOTHING)));
+         logCommand(player.getScoreboardName(), "spawn", null, 
+               world.getRespawnData().pos().getBottomCenter(), world.dimension().identifier().toString());
          return 1;
       }catch(Exception e){
          e.printStackTrace();
@@ -508,6 +524,7 @@ public class EnderNexus implements ModInitializer {
             Vec3 pos = locations.get(0).getCenter();
             
             BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.RTP,player,new TeleportTransition(world, pos, Vec3.ZERO, player.getYRot(),player.getXRot(), TeleportTransition.DO_NOTHING)));
+            logCommand(player.getScoreboardName(), "rtp", null, pos, world.dimension().identifier().toString());
             return 1;
          }
          
@@ -637,6 +654,7 @@ public class EnderNexus implements ModInitializer {
          BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.HOME,player,new TeleportTransition(world, home.getPos(), Vec3.ZERO, home.getRotation().y,home.getRotation().x, TeleportTransition.DO_NOTHING)));
          
          player.displayClientMessage(Component.translatable("text.endernexus.teleporing_home",name).withStyle(ChatFormatting.LIGHT_PURPLE),false);
+         logCommand(player.getScoreboardName(), "home", name, home.getPos(), home.getWorldKey());
          return 1;
       }catch(Exception e){
          e.printStackTrace();
@@ -732,6 +750,7 @@ public class EnderNexus implements ModInitializer {
          ServerLevel world = warp.getWorld(ctx.getSource().getServer());
          BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.WARP,player,new TeleportTransition(world, warp.getPos(), Vec3.ZERO, warp.getRotation().y,warp.getRotation().x, TeleportTransition.DO_NOTHING)));
          player.displayClientMessage(Component.translatable("text.endernexus.now_warping",name).withStyle(ChatFormatting.LIGHT_PURPLE),false);
+         logCommand(player.getScoreboardName(), "warp", name, warp.getPos(), warp.getWorldKey());
          return 1;
       }catch(Exception e){
          e.printStackTrace();
@@ -806,6 +825,17 @@ public class EnderNexus implements ModInitializer {
          case SPAWN -> EnderNexus.CONFIG.getDouble(EnderNexusRegistry.SPAWN_WARMUP);
          case RTP -> EnderNexus.CONFIG.getDouble(EnderNexusRegistry.RTP_WARMUP);
       };
+   }
+   
+   private static void logCommand(String playerName, String command, String details, Vec3 pos, String dimension){
+      if(CONFIG.getBoolean(EnderNexusRegistry.COMMAND_LOGGING)){
+         String posStr = String.format("%.1f, %.1f, %.1f", pos.x, pos.y, pos.z);
+         if(details != null && !details.isEmpty()){
+            LOGGER.info(Component.translatable("log.endernexus.command_with_details", playerName, command, details, posStr, dimension).getString());
+         }else{
+            LOGGER.info(Component.translatable("log.endernexus.command", playerName, command, posStr, dimension).getString());
+         }
+      }
    }
    
    public enum TPType{

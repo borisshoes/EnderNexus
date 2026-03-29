@@ -23,6 +23,7 @@ public class WarpsStorageLegacy implements StorableData {
    public static final DataKey<WarpsStorageLegacy> KEY = DataRegistry.register(DataKey.ofGlobal(Identifier.fromNamespaceAndPath(MOD_ID, "timestamp"), WarpsStorageLegacy::new));
    
    public final Set<Destination> warps = new HashSet<>();
+   private boolean migrated = false;
    private boolean hasData = false;
    
    public WarpsStorageLegacy(){}
@@ -30,7 +31,10 @@ public class WarpsStorageLegacy implements StorableData {
    @Override
    public void read(ValueInput view){
       warps.clear();
-      if(view.contains("warps")){
+      migrated = view.getBooleanOr("migrated",false);
+      
+      // Only load legacy data if not already migrated
+      if(!migrated && view.contains("warps")){
          for(Destination dest : view.listOrEmpty("warps", Destination.CODEC)){
             warps.add(dest);
          }
@@ -43,8 +47,7 @@ public class WarpsStorageLegacy implements StorableData {
    
    @Override
    public void writeNbt(CompoundTag tag){
-      // Intentionally empty - we don't want to save anything to the old key
-      // This prevents the "Saved 0 warps" overwrite issue
+      tag.putBoolean("migrated", migrated);
    }
    
    public Set<Destination> getWarps(){
@@ -52,7 +55,13 @@ public class WarpsStorageLegacy implements StorableData {
    }
    
    public boolean hasLegacyData(){
-      return hasData;
+      return hasData && !migrated;
+   }
+   
+   public void markMigrated(){
+      this.migrated = true;
+      this.hasData = false;
+      this.warps.clear();
    }
 }
 
