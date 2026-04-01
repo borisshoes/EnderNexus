@@ -29,7 +29,7 @@ public class Destination {
       this.name = name;
       this.pos = pos;
       this.worldKey = world;
-   
+      
       this.rot = Objects.requireNonNullElseGet(rot, () -> new Vec2(0, 0));
    }
    
@@ -50,12 +50,12 @@ public class Destination {
    }
    
    public ServerLevel getWorld(MinecraftServer server){
-      for (ServerLevel w : server.getAllLevels()){
+      for(ServerLevel w : server.getAllLevels()){
          if(w.dimension().identifier().toString().equals(worldKey)){
             return w;
          }
       }
-      EnderNexus.LOGGER.error("Unknown world teleport: {}",worldKey);
+      EnderNexus.LOGGER.error("Unknown world teleport: {}", worldKey);
       return null;
    }
    

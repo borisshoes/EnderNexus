@@ -24,7 +24,8 @@ public class WarpsStorage implements StorableData {
    
    public final Set<Destination> warps = new HashSet<>();
    
-   public WarpsStorage(){}
+   public WarpsStorage(){
+   }
    
    @Override
    public void read(ValueInput view){

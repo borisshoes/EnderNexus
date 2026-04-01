@@ -16,24 +16,15 @@
   "entrypoints": {
     "main": [
       "net.borisshoes.endernexus.EnderNexus"
-    ],
-    "cardinal-components-entity": [
-      "net.borisshoes.endernexus.cca.PlayerComponentInitializer"
-    ],
-    "cardinal-components-world": [
-      "net.borisshoes.endernexus.cca.WorldDataComponentInitializer"
     ]
-  },
-  "custom": {
-    "cardinal-components": ["endernexus:homes","endernexus:warps"]
   },
   "mixins": [
     "endernexus.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",
-    "fabric": "*",
+    "fabric-api": "*",
     "minecraft": ">=${minecraft_version}",
-    "borislib": "*"
+    "borislib": ">=${borislib_mod_version}"
   }
 }

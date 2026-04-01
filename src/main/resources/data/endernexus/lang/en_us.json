@@ -93,6 +93,7 @@
   "text.endernexus.teleporing_home": "Now teleporting to home '%s'",
   "text.endernexus.teleporting": "Teleporting!",
   "text.endernexus.teleports_need_player": "Teleports must be done by a player!",
+  "text.endernexus.no_permission": "You do not have permission to use this command.",
   "text.endernexus.their_tpa_timeout": "%s request from %s has timed out!",
   "text.endernexus.they_accepted_tpa": "%s has accepted the TPA request!",
   "text.endernexus.they_cancel_tpa": "%s has cancelled the TPA request!",

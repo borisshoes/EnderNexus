@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceKey;
 import static net.borisshoes.endernexus.EnderNexus.MOD_ID;
 
 public class EnderNexusRegistry {
-   public static final Registry<IConfigSetting<?>> CONFIG_SETTINGS = new MappedRegistry<>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(MOD_ID,"config_settings")), Lifecycle.stable());
+   public static final Registry<IConfigSetting<?>> CONFIG_SETTINGS = new MappedRegistry<>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(MOD_ID, "config_settings")), Lifecycle.stable());
    
    public static final IConfigSetting<?> HOMES_ENABLED = registerConfigSetting(new ConfigSetting<>(
          new BooleanConfigValue("homes", true)));
@@ -72,7 +72,7 @@ public class EnderNexusRegistry {
          new IntConfigValue("rtpMaxRange", 1000, new IntConfigValue.IntLimits(1))));
    
    private static IConfigSetting<?> registerConfigSetting(IConfigSetting<?> setting){
-      Registry.register(CONFIG_SETTINGS, Identifier.fromNamespaceAndPath(MOD_ID,setting.getId()),setting);
+      Registry.register(CONFIG_SETTINGS, Identifier.fromNamespaceAndPath(MOD_ID, setting.getId()), setting);
       return setting;
    }
 }

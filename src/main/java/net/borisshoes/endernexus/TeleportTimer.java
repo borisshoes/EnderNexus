@@ -52,22 +52,24 @@ public class TeleportTimer extends TickTimerCallback {
    
    @Override
    public void onTimer(){
-      long newStart = lastPos.distanceTo(player.position()) < 0.1 ?  startTime : System.currentTimeMillis();
+      long newStart = lastPos.distanceTo(player.position()) < 0.1 ? startTime : System.currentTimeMillis();
       double seconds = EnderNexus.readConfigWarmup(type);
-      double timeDiff = (System.currentTimeMillis()-newStart) / 1000.0;
+      double timeDiff = (System.currentTimeMillis() - newStart) / 1000.0;
       if(timeDiff >= seconds){
          TeleportTransition tpTarget = tpTargetSource.get();
          player.connection.send(new ClientboundClearTitlesPacket(true));
-         if (bossBar != null) {
+         if(bossBar != null){
             bossBar.removePlayer(player);
             player.level().getServer().getCustomBossEvents().remove(bossBar);
-         } else {
-            player.displayClientMessage(Component.translatable("text.endernexus.teleporting").withStyle(ChatFormatting.LIGHT_PURPLE), true);
+         }else{
+            player.sendSystemMessage(Component.translatable("text.endernexus.teleporting").withStyle(ChatFormatting.LIGHT_PURPLE), true);
          }
          player.teleport(tpTarget);
-         RECENT_TELEPORTS.add(new EnderNexus.Teleport(player,type,System.currentTimeMillis()));
-         if(CONFIG.getBoolean(EnderNexusRegistry.PARTICLES_ENABLED)) teleportParticles(tpTarget.newLevel(),tpTarget.position(),0);
-         if(CONFIG.getBoolean(EnderNexusRegistry.SOUND_ENABLED)) SoundUtils.playSound(tpTarget.newLevel(), BlockPos.containing(tpTarget.position()), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS,0.5f,0.8f + player.getRandom().nextFloat()*0.4f);
+         RECENT_TELEPORTS.add(new EnderNexus.Teleport(player, type, System.currentTimeMillis()));
+         if(CONFIG.getBoolean(EnderNexusRegistry.PARTICLES_ENABLED))
+            teleportParticles(tpTarget.newLevel(), tpTarget.position(), 0);
+         if(CONFIG.getBoolean(EnderNexusRegistry.SOUND_ENABLED))
+            SoundUtils.playSound(tpTarget.newLevel(), BlockPos.containing(tpTarget.position()), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.5f, 0.8f + player.getRandom().nextFloat() * 0.4f);
       }else{
          if(player.level().getServer().getPlayerList().getPlayer(player.getUUID()) == null){
             if(bossBar != null) player.level().getServer().getCustomBossEvents().remove(bossBar);
@@ -75,7 +77,7 @@ public class TeleportTimer extends TickTimerCallback {
          }
          if(player.level().getServer().getTickCount() % 5 == 0){
             if(CONFIG.getBoolean(EnderNexusRegistry.PARTICLES_ENABLED)){
-               player.level().sendParticles(ParticleTypes.PORTAL,player.position().x,player.position().y+.5,player.position().z,20,.2,.5,.2,1);
+               player.level().sendParticles(ParticleTypes.PORTAL, player.position().x, player.position().y + .5, player.position().z, 20, .2, .5, .2, 1);
             }
             
             if(CONFIG.getBoolean(EnderNexusRegistry.SOUND_ENABLED)){
@@ -83,9 +85,9 @@ public class TeleportTimer extends TickTimerCallback {
                SoundUtils.playSongToPlayer(player, SoundEvents.NOTE_BLOCK_BASEDRUM, 0.8f, pitch);
             }
             
-            if (bossBar == null) {
-               player.displayClientMessage(Component.translatable("text.endernexus.stand_still_for",
-                     Component.literal(TextUtils.readableInt((int) (seconds-timeDiff))).withStyle(ChatFormatting.GREEN)
+            if(bossBar == null){
+               player.sendSystemMessage(Component.translatable("text.endernexus.stand_still_for",
+                     Component.literal(TextUtils.readableInt((int) (seconds - timeDiff))).withStyle(ChatFormatting.GREEN)
                ).withStyle(ChatFormatting.LIGHT_PURPLE), true);
             }
             
@@ -93,17 +95,17 @@ public class TeleportTimer extends TickTimerCallback {
             player.connection.send(new ClientboundSetTitleTextPacket(Component.translatable("text.endernexus.teleporting").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD)));
          }
          
-         if (bossBar != null && player.level().getServer().getTickCount() % 3 == 0) {
+         if(bossBar != null && player.level().getServer().getTickCount() % 3 == 0){
             bossBar.setProgress(1.0f - (float) (timeDiff / seconds));
-            bossBar.setName(Component.translatable("text.endernexus.charging_teleport",TextUtils.readableInt((int)(seconds-timeDiff))).withStyle(ChatFormatting.LIGHT_PURPLE));
+            bossBar.setName(Component.translatable("text.endernexus.charging_teleport", TextUtils.readableInt((int) (seconds - timeDiff))).withStyle(ChatFormatting.LIGHT_PURPLE));
          }
          
-         BorisLib.addTickTimerCallback(new TeleportTimer(type,player,tpTargetSource,newStart,player.position(),bossBar));
+         BorisLib.addTickTimerCallback(new TeleportTimer(type, player, tpTargetSource, newStart, player.position(), bossBar));
       }
    }
    
    public static TeleportTimer startTeleport(EnderNexus.TPType type, ServerPlayer player, TeleportTransition tpTarget){
-      return startTeleport(type,player,() -> tpTarget);
+      return startTeleport(type, player, () -> tpTarget);
    }
    
    public static TeleportTimer startTeleport(EnderNexus.TPType type, ServerPlayer player, Supplier<TeleportTransition> tpTargetSource){
@@ -111,24 +113,25 @@ public class TeleportTimer extends TickTimerCallback {
       CustomBossEvent standStillBar = null;
       long start = System.currentTimeMillis();
       if(CONFIG.getBoolean(EnderNexusRegistry.BOSSBAR_ENABLED)){
-         int seconds = (int)EnderNexus.readConfigWarmup(type);
-         standStillBar  = server.getCustomBossEvents().create(
-               Identifier.parse("standstill-" + player.getStringUUID()+"-"+type.label),
-               Component.translatable("text.endernexus.charging_teleport",TextUtils.readableInt(seconds)).withStyle(ChatFormatting.LIGHT_PURPLE)
+         int seconds = (int) EnderNexus.readConfigWarmup(type);
+         standStillBar = server.getCustomBossEvents().create(player.getRandom(),
+               Identifier.parse("standstill-" + player.getStringUUID() + "-" + type.label),
+               Component.translatable("text.endernexus.charging_teleport", TextUtils.readableInt(seconds)).withStyle(ChatFormatting.LIGHT_PURPLE)
          );
          standStillBar.addPlayer(player);
          standStillBar.setColor(BossEvent.BossBarColor.GREEN);
          player.connection.send(new ClientboundSetTitlesAnimationPacket(0, 10, 5));
       }
-      return new TeleportTimer(type,player,tpTargetSource,start,player.position(),standStillBar);
+      return new TeleportTimer(type, player, tpTargetSource, start, player.position(), standStillBar);
    }
    
    private static void teleportParticles(ServerLevel world, Vec3 pos, int tick){
       int animLength = 20;
-      if(tick < 5) world.sendParticles(ParticleTypes.REVERSE_PORTAL,pos.x,pos.y+.5,pos.z,30,.1,.4,.1,0.2);
-      if(tick % 3 == 0) ParticleEffectUtils.circle(world,null,pos.subtract(0,0.5,0), ParticleTypes.WITCH,1,20,1,0.1,0);
+      if(tick < 5) world.sendParticles(ParticleTypes.REVERSE_PORTAL, pos.x, pos.y + .5, pos.z, 30, .1, .4, .1, 0.2);
+      if(tick % 3 == 0)
+         ParticleEffectUtils.circle(world, null, pos.subtract(0, 0.5, 0), ParticleTypes.WITCH, 1, 20, 1, 0.1, 0);
       if(tick < animLength){
-         BorisLib.addTickTimerCallback(world, new GenericTimer(1, () -> teleportParticles(world,pos,tick+1)));
+         BorisLib.addTickTimerCallback(world, new GenericTimer(1, () -> teleportParticles(world, pos, tick + 1)));
       }
    }
 }
