@@ -500,9 +500,9 @@ public class EnderNexus implements ModInitializer {
          if(activeChannels(player)) return -1;
          
          ServerLevel world = player.level().getServer().findRespawnDimension();
-         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.SPAWN, player, new TeleportTransition(world, world.getRespawnData().pos().getBottomCenter(), Vec3.ZERO, world.getRespawnData().yaw(), world.getRespawnData().pitch(), TeleportTransition.DO_NOTHING)));
+         BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.SPAWN, player, new TeleportTransition(world, Vec3.atBottomCenterOf(world.getRespawnData().pos()), Vec3.ZERO, world.getRespawnData().yaw(), world.getRespawnData().pitch(), TeleportTransition.DO_NOTHING)));
          logCommand(player.getScoreboardName(), "spawn", null,
-               world.getRespawnData().pos().getBottomCenter(), world.dimension().identifier().toString());
+               Vec3.atBottomCenterOf(world.getRespawnData().pos()), world.dimension().identifier().toString());
          return 1;
       }catch(Exception e){
          e.printStackTrace();
@@ -547,7 +547,7 @@ public class EnderNexus implements ModInitializer {
                tries++;
                continue;
             }
-            Vec3 pos = locations.get(0).getCenter();
+            Vec3 pos = Vec3.atCenterOf(locations.getFirst());
             
             BorisLib.addTickTimerCallback(TeleportTimer.startTeleport(TPType.RTP, player, new TeleportTransition(world, pos, Vec3.ZERO, player.getYRot(), player.getXRot(), TeleportTransition.DO_NOTHING)));
             logCommand(player.getScoreboardName(), "rtp", null, pos, world.dimension().identifier().toString());
