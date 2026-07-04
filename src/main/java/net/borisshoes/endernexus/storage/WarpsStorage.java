@@ -57,11 +57,15 @@ public class WarpsStorage implements StorableData {
    
    public boolean addWarp(Destination warp){
       if(warps.contains(warp)) return false;
-      return warps.add(warp);
+      boolean added = warps.add(warp);
+      markDirty();
+      return added;
    }
    
    public boolean removeWarp(Destination warp){
-      return warps.remove(warp);
+      boolean removed = warps.remove(warp);
+      markDirty();
+      return removed;
    }
    
    public static void onServerStopping(MinecraftServer server){

@@ -50,10 +50,14 @@ public class HomesStorage implements StorableData {
    
    public boolean addHome(Destination home){
       if(homes.contains(home)) return false;
-      return homes.add(home);
+      boolean added = homes.add(home);
+      markDirty();
+      return added;
    }
    
    public boolean removeHome(Destination home){
-      return homes.remove(home);
+      boolean removed = homes.remove(home);
+      markDirty();
+      return removed;
    }
 }
